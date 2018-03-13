@@ -1,0 +1,8 @@
+**/*.pyc
+**/*.egg-info
+/venv
+/build
+/dist
+/.idea
+/.ipynb_checkpoints
+/.python-version
