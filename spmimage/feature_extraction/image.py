@@ -12,8 +12,12 @@ __all__ = [
 def extract_simple_patches_2d(image: np.ndarray, patch_size: Tuple[int, int]) -> np.ndarray:
     """Reshape a 2D image into a collection of patches without duplication of extracted range.
     """
-    i_h, i_w = image.shape
+
+    i_h, i_w = image.shape[:2]
     p_h, p_w = patch_size
+
+    image = image.reshape((i_h, i_w, -1))
+    n_colors = image.shape[-1]
 
     patches = []
 
@@ -25,8 +29,13 @@ def extract_simple_patches_2d(image: np.ndarray, patch_size: Tuple[int, int]) ->
             patch = image[p_h * i:p_h * i + p_h, p_w * j:p_w * j + p_w]
             patches.append(patch.flatten())
 
-    n_patch = len(patches)
-    return np.asarray(patches).flatten().reshape(n_patch, p_h, p_w)
+    n_patches = len(patches)
+
+    patches_ret = np.asarray(patches).flatten().reshape(-1, p_h, p_w, n_colors)
+    if patches_ret.shape[-1] == 1:
+        return patches_ret.reshape((n_patches, p_h, p_w))
+    else:
+        return patches_ret
 
 
 def reconstruct_from_simple_patches_2d(patches: np.ndarray, image_size: Tuple[int, int]) -> np.ndarray:
