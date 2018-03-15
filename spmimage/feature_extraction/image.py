@@ -1,3 +1,5 @@
+from logging import getLogger
+
 import numpy as np
 from itertools import product
 
@@ -8,6 +10,8 @@ __all__ = [
     'reconstruct_from_simple_patches_2d',
 ]
 
+logger = getLogger(__name__)
+
 
 def extract_simple_patches_2d(image: np.ndarray, patch_size: Tuple[int, int]) -> np.ndarray:
     """Reshape a 2D image into a collection of patches without duplication of extracted range.
@@ -15,6 +19,10 @@ def extract_simple_patches_2d(image: np.ndarray, patch_size: Tuple[int, int]) ->
 
     i_h, i_w = image.shape[:2]
     p_h, p_w = patch_size
+
+    if i_h % p_h != 0 or i_w % p_w != 0:
+        logger.warning(
+            'image %s divided by patch %s is not zero and some parts will be lost', image.shape[:2], patch_size)
 
     image = image.reshape((i_h, i_w, -1))
     n_colors = image.shape[-1]
