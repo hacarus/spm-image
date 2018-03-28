@@ -47,16 +47,20 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, tol: float, max_iter: int, 
             set to True.
     """
 
-    if code_init is None:
-        A = Y[:, :n_components]
+    if dict_init is None:
+        A = Y[:n_components, :]
     else:
-        A = code_init
+        A = dict_init
     A = np.dot(A, np.diag(1. / np.sqrt(np.diag(np.dot(A.T, A)))))
 
-    if dict_init is None:
-        X = np.zeros((A.shape[1], Y.shape[1]))
+    if code_init is None:
+        X = np.zeros((Y.shape[0], A.shape[1]))
     else:
-        X = dict_init
+        X = code_init
+
+    Y = Y.T
+    X = X.T
+    A = A.T
 
     errors = [np.linalg.norm(Y - A.dot(X), 'fro')]
     k = -1
@@ -78,7 +82,7 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, tol: float, max_iter: int, 
         if np.abs(errors[-1] - errors[-2]) < tol:
             break
 
-    return A, X, errors, k + 1
+    return A.T, X, errors, k + 1
 
 
 class KSVD(BaseEstimator, SparseCodingMixin):

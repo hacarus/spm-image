@@ -19,3 +19,17 @@ python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
+
+### Testing
+
+You can run all test cases just like this
+
+```
+python -m unittest tests/test_*.py
+```
+
+Or run specific test case as follows
+
+```
+python -m unittest test_decomposition_ksvd.TestKSVD.test_ksvd
+```
