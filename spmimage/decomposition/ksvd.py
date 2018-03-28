@@ -31,7 +31,8 @@ Parameters:
 		If RandomState instance, random_state is the random number generator;
 		If None, the random number generator is the RandomState instance used
 		by `np.random`.
-
+	n_jobs : int, optional
+        Number of parallel jobs to run.
 Returns:
 ---------
 	dictionary : array of shape (n_components, n_features),
@@ -44,7 +45,7 @@ Returns:
 		Number of iterations run. Returned only if `return_n_iter` is
 		set to True.
 """
-def ksvd(Y: np.ndarray, n_components: int, k0: int, tol: float, max_iter: int, code_init=None, dict_init=None, random_state=None):
+def ksvd(Y: np.ndarray, n_components: int, k0: int, tol: float, max_iter: int, code_init=None, dict_init=None, random_state=None, n_jobs=1):
 	if code_init is None:
 		A = Y[:, :n_components]
 	else:
@@ -58,11 +59,10 @@ def ksvd(Y: np.ndarray, n_components: int, k0: int, tol: float, max_iter: int, c
 
 	errors = [np.linalg.norm(Y-A.dot(X), 'fro')]
 	for k in range(max_iter):
-		X = sparse_encode(Y.T, A.T, algorithm='omp', n_nonzero_coefs=k0).T
+		X = sparse_encode(Y.T, A.T, algorithm='omp', n_nonzero_coefs=k0, n_jobs=n_jobs).T
 
 		for j in range(n_components):
 			x = X[j, :] != 0
-			print(np.sum(x))
 			if np.sum(x) == 0:
 				continue
 			X[j, x] = 0
@@ -204,16 +204,18 @@ class Ksvd(BaseEstimator, SparseCodingMixin):
 			tol=self.tol, max_iter=self.max_iter,
 			code_init=code_init,
 			dict_init=dict_init,
-			random_state=random_state)
+			random_state=random_state,
+			n_jobs=self.n_jobs)
 
-		print(self.components)
-		print(code)
-		print(self.errors)
 		return self
 
-if __name__ == '__main__':
-	X = np.random.rand(10,30)
-	model = Ksvd(n_components=5, k0=3)
+def main():
+	X = np.random.rand(50,100)
+	model = Ksvd(n_components=20, k0=10, n_jobs=1)
 	model.fit(X)
+	print(model.components)
 
+
+if __name__ == '__main__':
+	main()
 
