@@ -1,47 +1,9 @@
 import numpy as np
 
 from sklearn.base import BaseEstimator
-from sklearn.decomposition.dict_learning import SparseCodingMixin
+from sklearn.decomposition.dict_learning import SparseCodingMixin, sparse_encode
 from sklearn.utils import check_array, check_random_state
-
-from sklearn.linear_model import OrthogonalMatchingPursuit
-
-
-def OMP(A, b, k0, tol):
-	""" 
-	直交マッチング追跡(orthogonal matching pursuit; OMP) 
-	
-	A nxm行列
-	b n要素の観測
-	k0 xの非ゼロの要素数
-	tol 誤差の閾値
-	"""
-	# 初期化
-	x = np.zeros(A.shape[1])
-	S = np.zeros(A.shape[1], dtype=np.uint8)
-	r = b.copy()
-	rr = np.dot(r, r)
-	loop = min(k0, A.shape[1])
-	for _ in range(loop):
-		# 誤差計算
-		err = rr - np.dot(A[:, S == 0].T, r) ** 2
-			
-		# サポート更新
-		ndx = np.where(S == 0)[0]
-		S[ndx[err.argmin()]] = 1
-	
-		# 解更新
-		As = A[:, S == 1]
-		pinv = np.linalg.pinv(np.dot(As, As.T))
-		x[S == 1] = np.dot(As.T, np.dot(pinv, b))
-		
-		# 残差更新
-		r = b - np.dot(A, x)
-		rr = np.dot(r, r)
-		if rr < tol:
-			break
-			
-	return x
+from sklearn.utils.extmath import row_norms
 
 """ K-svd
 Finds a dictionary that can be used to represent data using a sparse code.
@@ -82,29 +44,29 @@ Returns:
 		Number of iterations run. Returned only if `return_n_iter` is
 		set to True.
 """
-def ksvd(Y: np.ndarray, n_components: int, k0: int, tol: float, max_iter: int, dict_init=None, code_init=None, random_state=None):
-	if dict_init is None:
+def ksvd(Y: np.ndarray, n_components: int, k0: int, tol: float, max_iter: int, code_init=None, dict_init=None, random_state=None):
+	if code_init is None:
 		A = Y[:, :n_components]
 	else:
-		A = dict_init
+		A = code_init
 	A = np.dot(A, np.diag(1. / np.sqrt(np.diag(np.dot(A.T, A)))))
 
-	if code_init is None:
+	if dict_init is None:
 		X = np.zeros((A.shape[1], Y.shape[1]))
 	else:
-		X = code_init
+		X = dict_init
 
-	ndx = np.arange(n_components)
 	errors = [np.linalg.norm(Y-A.dot(X), 'fro')]
 	for k in range(max_iter):
-		for i in range(Y.shape[1]):
-			X[:, i] = OMP(A, Y[:, i], k0, tol=tol)
+		X = sparse_encode(Y.T, A.T, algorithm='omp', n_nonzero_coefs=k0).T
 
-		for j in ndx:	  
+		for j in range(n_components):
 			x = X[j, :] != 0
+			print(np.sum(x))
 			if np.sum(x) == 0:
 				continue
 			X[j, x] = 0
+
 			error = Y[:, x] - np.dot(A, X[:, x])	
 			U, s, V = np.linalg.svd(error)
 			A[:, j] = U[:, 0]
@@ -186,7 +148,7 @@ class Ksvd(BaseEstimator, SparseCodingMixin):
 
 	"""
 
-	def __init__(self, n_components=None, k0=None, max_iter=10, tol=1e-8,
+	def __init__(self, n_components=None, k0=None, max_iter=100, tol=1e-8,
 				 transform_algorithm='omp', transform_n_nonzero_coefs=None,
 				 transform_alpha=None, n_jobs=1, 
 				 split_sign=False, random_state=None):
@@ -219,34 +181,39 @@ class Ksvd(BaseEstimator, SparseCodingMixin):
 		#Input validation on an array, list, sparse matrix or similar.
 		#By default, the input is converted to an at least 2D numpy array. If the dtype of the array is object, attempt converting to float, raising on failure.
 		X = check_array(X)
+		n_samples, n_features = X.shape
 		if self.n_components is None:
 			n_components = X.shape[1]
 		else:
 			n_components = self.n_components
 
 		if self.k0 is None:
-			k0 = n_components
+			k0 = n_features
+		elif self.k0 > n_features:
+			k0 = n_features
 		else:
 			k0 = self.k0
 
-		#initialize dictionary
-		dict_init = random_state.rand(X.shape[0],n_components)
 		#initialize code
-		code_init = random_state.rand(n_components, X.shape[1])
+		code_init = random_state.rand(n_samples,n_components)
+		#initialize dictionary
+		dict_init = random_state.rand(n_components, n_features)
 
 		self.components, code, self.errors, self.n_iter = ksvd(
 			X, n_components, k0,
 			tol=self.tol, max_iter=self.max_iter,
-			dict_init=dict_init,
 			code_init=code_init,
+			dict_init=dict_init,
 			random_state=random_state)
 
+		print(self.components)
+		print(code)
 		print(self.errors)
 		return self
 
 if __name__ == '__main__':
 	X = np.random.rand(10,30)
-	model = Ksvd(n_components=5, k0=100)
+	model = Ksvd(n_components=5, k0=3)
 	model.fit(X)
 
 
