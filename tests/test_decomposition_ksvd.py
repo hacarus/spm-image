@@ -8,26 +8,30 @@ import numpy as np
 
 class TestKSVD(TestCase):
 
-    def generate_input(self, dict_size: Tuple[int, int], k0: int, n_samples: int) -> Tuple[np.ndarray, np.ndarray]:
+    def generate_input(self, n_samples: int, n_features: int, n_components: int, k0: int) -> Tuple[np.ndarray, np.ndarray]:
         # random dictionary base
-        A0 = np.random.randn(*dict_size)
-        X = np.zeros((dict_size[0], n_samples))
+        A0 = np.random.randn(n_components, n_features)
+        A0 = np.dot(A0, np.diag(1. / np.sqrt(np.diag(np.dot(A0.T, A0)))))
+
+        X = np.zeros((n_samples, n_features))
         for i in range(n_samples):
             # select k0 components from dictionary
-            X[:, i] = np.dot(A0[:, np.random.permutation(range(dict_size[1]))[:k0]], np.random.randn(k0))
-        return A0, X.T
+            X[i, :] = np.dot(np.random.randn(k0), A0[np.random.permutation(range(n_components))[:k0], :])
+        return A0, X
 
     def test_ksvd(self):
         np.random.seed(0)
         k0 = 4
         n_samples = 512
-        dict_size = (24, 32)
+        n_features = 32
+        n_components = 24
         max_iter = 100
-        A0, X = self.generate_input(dict_size, k0, n_samples)
-        model = KSVD(n_components=dict_size[1], k0=k0, max_iter=max_iter)
+
+        A0, X = self.generate_input(n_samples, n_features, n_components, k0)
+        model = KSVD(n_components=n_components, k0=k0, max_iter=max_iter)
         model.fit(X)
 
-        norm = np.linalg.norm(model.components_ - A0.T, ord='fro')
+        norm = np.linalg.norm(model.components_ - A0, ord='fro')
 
         self.assertTrue(model.error_[-1] < 75)
         self.assertTrue(norm < 50)

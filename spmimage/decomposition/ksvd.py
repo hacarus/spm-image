@@ -9,13 +9,16 @@ from sklearn.utils import check_array, check_random_state
 logger = getLogger(__name__)
 
 
-def _ksvd(Y: np.ndarray, n_components: int, k0: int, tol: float, max_iter: int, code_init: np.ndarray = None,
+def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float, code_init: np.ndarray = None,
           dict_init: np.ndarray = None, n_jobs: int = 1):
     """_ksvd
     Finds a dictionary that can be used to represent data using a sparse code.
     Solves the optimization problem:
-        argmin \sum_{i=1}^M || y_i - Ax_i ||_2^2 such that ||x_i||_0 <= k_0 for all 1 <= i <= M
-        (A,{x_i}_{i=1}^M)
+        argmin \sum_{i=1}^M || y_i - w_iH ||_2^2 such that ||w_i||_0 <= k_0 for all 1 <= i <= M
+        ({w_i}_{i=1}^M, H)
+
+    **Note**
+    Y ~= WH = code * dictionary
 
     Parameters:
     ------------
@@ -24,22 +27,24 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, tol: float, max_iter: int, 
             and n_features is the number of features.
         n_components : int,
             number of dictionary elements to extract
+        k0 : int,
+            number of non-zero elements of sparse coding
         max_iter : int,
             maximum number of iterations to perform
         tol : float,
             tolerance for numerical error
-        dict_init : array of shape (n_components, n_features),
-            initial values for the dictionary, for warm restart
         code_init : array of shape (n_samples, n_components),
             Initial value for the sparse code for warm restart scenarios.
+        dict_init : array of shape (n_components, n_features),
+            initial values for the dictionary, for warm restart
         n_jobs : int, optional
             Number of parallel jobs to run.
     Returns:
     ---------
-        dictionary : array of shape (n_components, n_features),
-            The dictionary factor in the matrix factorization.
         code : array of shape (n_samples, n_components)
             The sparse code factor in the matrix factorization.
+        dictionary : array of shape (n_components, n_features),
+            The dictionary factor in the matrix factorization.
         errors : array
             Vector of errors at each iteration.
         n_iter : int
@@ -47,42 +52,39 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, tol: float, max_iter: int, 
             set to True.
     """
 
-    if dict_init is None:
-        A = Y[:n_components, :]
-    else:
-        A = dict_init
-    A = np.dot(A, np.diag(1. / np.sqrt(np.diag(np.dot(A.T, A)))))
-
     if code_init is None:
-        X = np.zeros((Y.shape[0], A.shape[1]))
+        W = np.zeros((Y.shape[0], n_components))
     else:
-        X = code_init
+        W = code_init
+    
+    if dict_init is None:
+        H = Y[:n_components, :]
+    else:
+        H = dict_init
+    H = np.dot(H, np.diag(1. / np.sqrt(np.diag(np.dot(H.T, H)))))
 
-    Y = Y.T
-    X = X.T
-    A = A.T
-
-    errors = [np.linalg.norm(Y - A.dot(X), 'fro')]
+    errors = [np.linalg.norm(Y - W.dot(H), 'fro')]
     k = -1
     for k in range(max_iter):
-        X = sparse_encode(Y.T, A.T, algorithm='omp', n_nonzero_coefs=k0, n_jobs=n_jobs).T
+        W = sparse_encode(Y, H, algorithm='omp', n_nonzero_coefs=k0, n_jobs=n_jobs)
 
         for j in range(n_components):
-            x = X[j, :] != 0
+            x = W[:, j] != 0
             if np.sum(x) == 0:
                 continue
-            X[j, x] = 0
+            W[x, j] = 0
 
-            error = Y[:, x] - np.dot(A, X[:, x])
+            error = Y[x, :] - np.dot(W[x, :], H)
+
             U, s, V = np.linalg.svd(error)
-            A[:, j] = U[:, 0]
-            X[j, x] = s[0] * V.T[:, 0]
+            W[x, j] = U[:, 0]*s[0]
+            H[j, :] = V.T[:, 0]
 
-        errors.append(np.linalg.norm(Y - A.dot(X), 'fro'))
+        errors.append(np.linalg.norm(Y - W.dot(H), 'fro'))
         if np.abs(errors[-1] - errors[-2]) < tol:
             break
 
-    return A.T, X, errors, k + 1
+    return W, H, errors, k + 1
 
 
 class KSVD(BaseEstimator, SparseCodingMixin):
@@ -204,11 +206,10 @@ class KSVD(BaseEstimator, SparseCodingMixin):
         # initialize dictionary
         dict_init = random_state.rand(n_components, n_features)
 
-        self.components_, code, self.error_, self.n_iter_ = _ksvd(
+        code, self.components_, self.error_, self.n_iter_ = _ksvd(
             X, n_components, k0,
-            tol=self.tol, max_iter=self.max_iter,
-            code_init=code_init,
-            dict_init=dict_init,
+            max_iter=self.max_iter, tol=self.tol,
+            code_init=code_init, dict_init=dict_init,
             n_jobs=self.n_jobs)
 
         return self
