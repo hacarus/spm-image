@@ -2,17 +2,12 @@ from setuptools import setup, find_packages
 from pathlib import Path
 import sys
 
+from spmimage import __version__ as version
+
 LICENSE = 'Modified BSD'
 
 if not (3, 5) <= sys.version_info[:2]:
-    raise Exception("spm-image requires a Python 3 version newer than 3.5. \n now running on %s" % sys.version)
-
-# load basic information from files
-with Path('spmimage', '__init__.py').open() as f:
-    for line in f:
-        if line.startswith('__version__'):
-            VERSION = line.strip().split()[-1][1:-1]
-            break
+    raise Exception('spm-image requires Python 3.5 or later. \n Now running on {0}'.format(sys.version))
 
 with Path('requirements.txt').open() as f:
     INSTALL_REQUIRES = [line.strip() for line in f.readlines() if line]
@@ -23,7 +18,7 @@ setup(
     author_email='takashi@hacarus.com',
     url='https://github.com/hacarus/spm-image',
     description='Sparse modeling and Compressive sensing in Python',
-    version=VERSION,
+    version=version,
     packages=find_packages(),
     install_requires=INSTALL_REQUIRES,
     test_suite='tests',
