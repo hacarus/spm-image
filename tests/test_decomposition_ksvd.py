@@ -1,4 +1,4 @@
-from unittest import TestCase
+import unittest
 from typing import Tuple
 
 from spmimage.decomposition import KSVD
@@ -6,7 +6,10 @@ from spmimage.decomposition import KSVD
 import numpy as np
 
 
-class TestKSVD(TestCase):
+class TestKSVD(unittest.TestCase):
+
+    def setUp(self):
+        np.random.seed(0)
 
     @staticmethod
     def generate_input(n_samples: int, n_features: int, n_components: int, k0: int) \
@@ -21,8 +24,7 @@ class TestKSVD(TestCase):
             X[i, :] = np.dot(np.random.randn(k0), A0[np.random.permutation(range(n_components))[:k0], :])
         return A0, X
 
-    def test_ksvd(self):
-        np.random.seed(0)
+    def test_ksvd_normal_input(self):
         k0 = 4
         n_samples = 512
         n_features = 32
@@ -47,8 +49,7 @@ class TestKSVD(TestCase):
         reconstruct_error = np.linalg.norm(reconstructed - X, ord='fro')
         self.assertTrue(reconstruct_error < 15)
 
-    def test_missing_ksvd(self):
-        np.random.seed(0)
+    def test_ksvd_input_with_missing_values(self):
         k0 = 4
         n_samples = 128
         n_features = 32
@@ -64,3 +65,7 @@ class TestKSVD(TestCase):
         # check error of learning
         self.assertTrue(model.error_[-1] < model.error_[0])
         self.assertTrue(model.n_iter_ <= max_iter)
+
+
+if __name__ == '__main__':
+    unittest.main()

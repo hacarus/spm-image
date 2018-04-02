@@ -31,5 +31,5 @@ python -m unittest tests/test_*.py
 Or run specific test case as follows
 
 ```
-python -m unittest test_decomposition_ksvd.TestKSVD.test_ksvd
+python -m unittest tests.test_decomposition_ksvd.TestKSVD
 ```

@@ -38,6 +38,8 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float, 
             Initial value for the sparse code for warm restart scenarios.
         dict_init : array of shape (n_components, n_features),
             initial values for the dictionary, for warm restart
+        mask : array-like, shape (n_samples, n_features),
+            value at (i,j) in mask is 1 indicates value at (i,j) in Y is missing
         n_jobs : int, optional
             Number of parallel jobs to run.
     Returns:
@@ -211,7 +213,7 @@ class KSVD(BaseEstimator, SparseCodingMixin):
             n_components = self.n_components
 
         mask = None
-        if not self.missing_value is None:
+        if self.missing_value is not None:
             mask = np.where(X == self.missing_value, 1, 0)
 
         if self.k0 is None:
