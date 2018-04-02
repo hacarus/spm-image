@@ -5,6 +5,7 @@ import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.decomposition.dict_learning import SparseCodingMixin, sparse_encode
 from sklearn.utils import check_array, check_random_state
+from sklearn.externals.joblib import Parallel, delayed
 
 logger = getLogger(__name__)
 
@@ -69,10 +70,14 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float, 
         if mask is None:
             W = sparse_encode(Y, H, algorithm='omp', n_nonzero_coefs=k0, n_jobs=n_jobs)
         else:
-            for i in range(Y.shape[0]):
-                y_mask = Y[i, :][mask[i,:]==1].reshape(1,-1)
-                H_mask = H[:, mask[i,:]==1]
-                W[i, :] = sparse_encode(y_mask, H_mask, algorithm='omp', n_nonzero_coefs=k0, n_jobs=n_jobs)
+            codes = Parallel(n_jobs=n_jobs)(
+                delayed(sparse_encode)(
+                    Y[idx, :][mask[idx,:]==1].reshape(1,-1),
+                    H[:, mask[idx,:]==1],
+                    algorithm='omp', n_nonzero_coefs=k0
+                    ) for idx in range(Y.shape[0]))
+            for idx, code in zip(range(Y.shape[0]), codes):
+                W[idx, :] = code
 
         for j in range(n_components):
             x = W[:, j] != 0
