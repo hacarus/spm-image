@@ -20,6 +20,14 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+### Examples
+To set up examples environment, run the following commands.
+```
+python -m venv examples_venv
+source examples_venv/bin/activate
+pip install -r examples_requirements
+```
+
 ### Testing
 
 You can run all test cases just like this
@@ -33,3 +41,4 @@ Or run specific test case as follows
 ```
 python -m unittest tests.test_decomposition_ksvd.TestKSVD
 ```
+
