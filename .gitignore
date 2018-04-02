@@ -1,6 +1,7 @@
 **/*.pyc
 **/*.egg-info
 /venv
+/examples_venv
 /build
 /dist
 /.idea
