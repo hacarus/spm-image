@@ -57,7 +57,7 @@ class TestKSVD(TestCase):
         missing_value = 0
 
         A0, X = self.generate_input(n_samples, n_features, n_components, k0)
-        X[X<0.1] = missing_value
+        X[X < 0.1] = missing_value
         model = KSVD(n_components=n_components, k0=k0, max_iter=max_iter, missing_value=missing_value)
         model.fit(X)
 
