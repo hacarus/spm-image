@@ -5,5 +5,5 @@
 /build
 /dist
 /.idea
-/.ipynb_checkpoints
+**/.ipynb_checkpoints
 /.python-version

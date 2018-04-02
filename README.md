@@ -21,11 +21,25 @@ pip install -r requirements.txt
 ```
 
 ### Examples
-To set up examples environment, run the following commands.
+
+If you want to run examples, create separated venv from one for development above.
+
 ```
 python -m venv examples_venv
 source examples_venv/bin/activate
-pip install -r examples_requirements
+pip install -r examples_requirements.txt
+```
+
+Then add it to jupyter kernels like this.
+
+```
+python -m ipykernel install --user --name spm-image-examples --display-name "spm-image Examples"
+```
+
+Thereafter, you can run jupyter notebook as follows.
+
+```
+jupyter notebook
 ```
 
 ### Testing
