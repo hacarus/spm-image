@@ -20,6 +20,28 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+### Examples
+
+If you want to run examples, create separated venv from one for development above.
+
+```
+python -m venv examples_venv
+source examples_venv/bin/activate
+pip install -r examples_requirements.txt
+```
+
+Then add it to jupyter kernels like this.
+
+```
+python -m ipykernel install --user --name spm-image-examples --display-name "spm-image Examples"
+```
+
+Thereafter, you can run jupyter notebook as follows.
+
+```
+jupyter notebook
+```
+
 ### Testing
 
 You can run all test cases just like this
@@ -33,3 +55,4 @@ Or run specific test case as follows
 ```
 python -m unittest tests.test_decomposition_ksvd.TestKSVD
 ```
+
