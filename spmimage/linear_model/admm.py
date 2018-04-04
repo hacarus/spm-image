@@ -4,6 +4,7 @@ import numpy as np
 
 from sklearn.linear_model.base import LinearModel, RegressorMixin
 
+
 class LassoADMM(LinearModel, RegressorMixin):
     """Linear Model trained with L1 prior as regularizer (aka the Lasso)
     The optimization objective for Lasso is::
@@ -11,14 +12,19 @@ class LassoADMM(LinearModel, RegressorMixin):
     Technically the Lasso model is optimizing the same objective function as
     the Elastic Net with ``l1_ratio=1.0`` (no L2 penalty).
     """
-    def __init__(self, alpha=1.0, rho=1.0, fit_intercept=False, normalize=False, max_iter=1000):
+
+    def __init__(self, alpha=1.0, rho=1.0, fit_intercept=False,
+                 normalize=False, copy_X=True, max_iter=1000, tol=0.0001):
         self.alpha = alpha
         self.rho = rho
         self.fit_intercept = fit_intercept
         self.normalize = normalize
+        self.copy_X = copy_X
         self.max_iter = max_iter
+        self.tol = tol
         self.threshold = alpha / rho
         self.intercept_ = 0
+        self.coef_ = None
 
     def fit(self, X, y, check_input=False):
         if self.alpha == 0:
@@ -35,13 +41,15 @@ class LassoADMM(LinearModel, RegressorMixin):
 
         n_samples, n_features = X.shape
 
-        inv_matrix = np.linalg.inv(X.T.dot(X) / n_samples + self.rho * np.eye(n_features))
+        inv_matrix = np.linalg.inv(X.T.dot(X) / n_samples +
+                                   self.rho * np.eye(n_features))
         w_t = X.T.dot(y) / n_samples
         z_t = w_t.copy()
         h_t = np.zeros(len(w_t))
 
         for t in range(self.max_iter):
-            w_t = inv_matrix.dot(X.T.dot(y) / n_samples + (self.rho * z_t) - h_t)
+            w_t = inv_matrix.dot(X.T.dot(y) / n_samples +
+                                 (self.rho * z_t) - h_t)
             z_t = self._soft_threshold(w_t + (h_t / self.rho), self.threshold)
             h_t += self.rho * (w_t - z_t)
 
