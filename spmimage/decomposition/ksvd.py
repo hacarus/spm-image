@@ -82,12 +82,12 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
             x = W[:, j] != 0
             if np.sum(x) == 0:
                 continue
-            W[x, j] = 0
-
-            error = Y[x, :] - np.dot(W[x, :], H)
+            
 
             if method is "approximate":
-                g = gamma[x, j].T
+                H[j,:] = 0
+                error = Y[x, :] - np.dot(W[x, :], H)
+                g = W[x, j].T
                 d = error.T.dot(g)
                 d /= np.linalg.norm(d)
                 g = error.dot(d)
@@ -95,6 +95,8 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
                 H[j, :] = d
             else:
                 # normal ksvd
+                W[x, j] = 0
+                error = Y[x, :] - np.dot(W[x, :], H)
                 U, s, V = np.linalg.svd(error)
                 W[x, j] = U[:, 0] * s[0]
                 H[j, :] = V.T[:, 0]
