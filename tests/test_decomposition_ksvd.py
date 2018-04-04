@@ -83,5 +83,20 @@ class TestKSVD(unittest.TestCase):
             self.assertTrue(model.error_[-1] <= prev_error)
             prev_error = model.error_[-1]
 
+    def test_approximate_ksvd(self):
+        k0 = 5
+        n_samples = 128
+        n_features = 32
+        n_components = 16
+        max_iter = 10
+
+        A0, X = self.generate_input(n_samples, n_features, n_components, k0)
+        model = KSVD(n_components=n_components, k0=k0, max_iter=max_iter, method='approx')
+        model.fit(X)
+
+        # check error of learning
+        self.assertTrue(model.error_[-1] <= model.error_[0])
+        self.assertTrue(model.n_iter_ <= max_iter)
+
 if __name__ == '__main__':
     unittest.main()
