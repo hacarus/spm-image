@@ -1,11 +1,12 @@
-# coding: utf-8
+from logging import getLogger
 
 import numpy as np
 
 from sklearn.utils import check_array
 from sklearn.base import RegressorMixin
-from sklearn.linear_model.base import LinearModel
+from sklearn.linear_model.base import LinearModel, _preprocess_data
 
+logger = getLogger(__name__)
 
 class LassoADMM(LinearModel, RegressorMixin):
     """Linear Model trained with L1 prior as regularizer (aka the Lasso)
@@ -15,8 +16,9 @@ class LassoADMM(LinearModel, RegressorMixin):
     the Elastic Net with ``l1_ratio=1.0`` (no L2 penalty).
     """
 
-    def __init__(self, alpha=1.0, rho=1.0, fit_intercept=False,
-                 normalize=False, copy_X=True, max_iter=1000, tol=0.0001):
+    def __init__(self, alpha=1.0, rho=1.0, fit_intercept=True,
+                 normalize=False, copy_X=True, max_iter=1000,
+                 tol=0.0001, warm_start=False):
         self.alpha = alpha
         self.rho = rho
         self.fit_intercept = fit_intercept
@@ -25,7 +27,6 @@ class LassoADMM(LinearModel, RegressorMixin):
         self.max_iter = max_iter
         self.tol = tol
         self.threshold = alpha / rho
-        self.intercept_ = 0
         self.coef_ = None
 
     def fit(self, X, y, check_input=False):
@@ -42,10 +43,18 @@ class LassoADMM(LinearModel, RegressorMixin):
             y = check_array(y, order='F', copy=False, dtype=X.dtype.type,
                             ensure_2d=False)
 
+        X, y, X_offset, y_offset, X_scale = \
+            _preprocess_data(X, y, fit_intercept=self.fit_intercept,
+                             normalize=self.normalize, copy=False)
+
         if y.ndim == 1:
             y = y[:, np.newaxis]
 
-        self._admm(X, y)
+        self.coef_ = self._admm(X, y)
+        self._set_intercept(X_offset, y_offset, X_scale)
+
+        # workaround since _set_intercept will cast self.coef_ into X.dtype
+        self.coef_ = np.asarray(self.coef_, dtype=X.dtype)
 
         return self
 
@@ -70,6 +79,7 @@ class LassoADMM(LinearModel, RegressorMixin):
         inv_matrix = np.linalg.inv(X.T.dot(X) / n_samples +
                                    self.rho * np.eye(n_features))
 
+        self.n_iter_ = []
         # Update ADMM parameters by columns
         for k in range(n_targets):
             for t in range(self.max_iter):
@@ -87,8 +97,11 @@ class LassoADMM(LinearModel, RegressorMixin):
 
                 # after cost
                 gap = np.abs(gap - self._cost_function(y[:, k], X, w_t[:, k]))
-                print(gap)
                 if gap < self.tol:
                     break
+            self.n_iter_.append(t)
 
-        self.coef_ = np.squeeze(w_t)
+        if n_targets == 1:
+            self.n_iter_ = self.n_iter_[0]
+
+        return np.squeeze(w_t)
