@@ -227,7 +227,7 @@ class KSVD(BaseEstimator, SparseCodingMixin):
                 # Warm Start
                 dict_init = self.components_
 
-        self.code_, self.components_, self.error_, self.n_iter_ = _ksvd(
+        code, self.components_, self.error_, self.n_iter_ = _ksvd(
             X, n_components, k0,
             max_iter=self.max_iter, tol=self.tol,
             dict_init=dict_init, mask=mask, n_jobs=self.n_jobs)
