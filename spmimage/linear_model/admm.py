@@ -2,7 +2,9 @@
 
 import numpy as np
 
-from sklearn.linear_model.base import LinearModel, RegressorMixin
+from sklearn.utils import check_array
+from sklearn.base import RegressorMixin
+from sklearn.linear_model.base import LinearModel
 
 
 class LassoADMM(LinearModel, RegressorMixin):
@@ -33,29 +35,60 @@ class LassoADMM(LinearModel, RegressorMixin):
                           "estimator", stacklevel=2)
 
         if check_input:
-            # We have to check array X & y
-            pass
-        # 本来はここでスケーリング
-        X = X
-        y = y
+            X, y = check_X_y(X, y, accept_sparse='csc',
+                             order='F', dtype=[np.float64, np.float32],
+                             copy=self.copy_X and self.fit_intercept,
+                             multi_output=True, y_numeric=True)
+            y = check_array(y, order='F', copy=False, dtype=X.dtype.type,
+                            ensure_2d=False)
 
-        n_samples, n_features = X.shape
+        if y.ndim == 1:
+            y = y[:, np.newaxis]
 
-        inv_matrix = np.linalg.inv(X.T.dot(X) / n_samples +
-                                   self.rho * np.eye(n_features))
-        w_t = X.T.dot(y) / n_samples
-        z_t = w_t.copy()
-        h_t = np.zeros(len(w_t))
-
-        for t in range(self.max_iter):
-            w_t = inv_matrix.dot(X.T.dot(y) / n_samples +
-                                 (self.rho * z_t) - h_t)
-            z_t = self._soft_threshold(w_t + (h_t / self.rho), self.threshold)
-            h_t += self.rho * (w_t - z_t)
-
-        self.coef_ = w_t
+        self._admm(X, y)
 
         return self
 
+    def _cost_function(self, y, X, w):
+        n_samples = X.shape[0]
+        return (np.linalg.norm(y - X.dot(w)) / n_samples +
+                self.alpha * np.sum(np.abs(w)))
+
     def _soft_threshold(self, X: np.ndarray, thresh: float) -> np.ndarray:
         return np.where(np.abs(X) <= thresh, 0, X - thresh * np.sign(X))
+
+    def _admm(self, X, y):
+        n_samples, n_features = X.shape
+        n_targets = y.shape[1]
+
+        # Initialize ADMM parameters
+        w_t = X.T.dot(y) / n_samples
+        z_t = w_t.copy()
+        h_t = np.zeros(w_t.shape)
+
+        # Calculate inverse matrix
+        inv_matrix = np.linalg.inv(X.T.dot(X) / n_samples +
+                                   self.rho * np.eye(n_features))
+
+        # Update ADMM parameters by columns
+        for k in range(n_targets):
+            for t in range(self.max_iter):
+                # current cost
+                gap = self._cost_function(y[:, k], X, w_t[:, k])
+
+                # Update
+                w_t[:, k] = \
+                    inv_matrix.dot(X.T.dot(y[:, k]) / n_samples +
+                                   (self.rho * z_t[:, k]) - h_t[:, k])
+                z_t[:, k] = \
+                    self._soft_threshold(w_t[:, k] + (h_t[:, k] / self.rho),
+                                         self.threshold)
+                h_t[:, k] += self.rho * (w_t[:, k] - z_t[:, k])
+
+                # after cost
+                gap = np.abs(gap - self._cost_function(y[:, k], X, w_t[:, k]))
+                print(gap)
+                if gap < self.tol:
+                    break
+
+        self.coef_ = np.squeeze(w_t)
