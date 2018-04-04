@@ -11,7 +11,7 @@ logger = getLogger(__name__)
 
 
 def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
-          dict_init: np.ndarray = None, mask: np.ndarray = None, n_jobs: int = 1):
+          dict_init: np.ndarray = None, mask: np.ndarray = None, n_jobs: int = 1, method: str=None):
     """_ksvd
     Finds a dictionary that can be used to represent data using a sparse code.
     Solves the optimization problem:
@@ -86,9 +86,18 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
 
             error = Y[x, :] - np.dot(W[x, :], H)
 
-            U, s, V = np.linalg.svd(error)
-            W[x, j] = U[:, 0] * s[0]
-            H[j, :] = V.T[:, 0]
+            if method is "approximate":
+                g = gamma[x, j].T
+                d = error.T.dot(g)
+                d /= np.linalg.norm(d)
+                g = error.dot(d)
+                W[x, j] = g.T
+                H[j, :] = d
+            else:
+                # normal ksvd
+                U, s, V = np.linalg.svd(error)
+                W[x, j] = U[:, 0] * s[0]
+                H[j, :] = V.T[:, 0]
 
         errors.append(np.linalg.norm(Y - W.dot(H), 'fro'))
         if np.abs(errors[-1] - errors[-2]) < tol:
@@ -151,6 +160,7 @@ class KSVD(BaseEstimator, SparseCodingMixin):
             If RandomState instance, random_state is the random number generator;
             If None, the random number generator is the RandomState instance used
             by `np.random`.
+        method : {"approximate": approximate KSVD, otherwize: KSVD}
 
     Attributes
     ----------
@@ -172,7 +182,7 @@ class KSVD(BaseEstimator, SparseCodingMixin):
                  missing_value=None, transform_algorithm='omp',
                  transform_n_nonzero_coefs=None,
                  transform_alpha=None, n_jobs=1,
-                 split_sign=False, random_state=None):
+                 split_sign=False, random_state=None, method=None):
         self._set_sparse_coding_params(n_components, transform_algorithm,
                                        transform_n_nonzero_coefs,
                                        transform_alpha, split_sign, n_jobs)
@@ -181,6 +191,7 @@ class KSVD(BaseEstimator, SparseCodingMixin):
         self.tol = tol
         self.missing_value = missing_value
         self.random_state = random_state
+        self.method = method
         self.components_ = None
 
     def fit(self, X, y=None):
@@ -230,6 +241,6 @@ class KSVD(BaseEstimator, SparseCodingMixin):
         code, self.components_, self.error_, self.n_iter_ = _ksvd(
             X, n_components, k0,
             max_iter=self.max_iter, tol=self.tol,
-            dict_init=dict_init, mask=mask, n_jobs=self.n_jobs)
+            dict_init=dict_init, mask=mask, n_jobs=self.n_jobs, method=self.method)
 
         return self
