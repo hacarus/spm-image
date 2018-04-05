@@ -81,7 +81,7 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
             if np.sum(x) == 0:
                 continue
 
-            if method is "approximate":
+            if method == 'approximate':
                 H[j, :] = 0
                 error = Y[x, :] - np.dot(W[x, :], H)
                 g = W[x, j].T
