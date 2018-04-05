@@ -10,7 +10,7 @@ from sklearn.externals.joblib import Parallel, delayed
 logger = getLogger(__name__)
 
 
-def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float, code_init: np.ndarray = None,
+def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
           dict_init: np.ndarray = None, mask: np.ndarray = None, n_jobs: int = 1):
     """_ksvd
     Finds a dictionary that can be used to represent data using a sparse code.
@@ -55,17 +55,13 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float, 
             set to True.
     """
 
-    if code_init is None:
-        W = np.zeros((Y.shape[0], n_components))
-    else:
-        W = code_init
-
+    W = np.zeros((Y.shape[0], n_components))
     if dict_init is None:
         H = Y[:n_components, :]
+        H = np.dot(H, np.diag(1. / np.sqrt(np.diag(np.dot(H.T, H)))))
     else:
         H = dict_init
-    H = np.dot(H, np.diag(1. / np.sqrt(np.diag(np.dot(H.T, H)))))
-
+    
     errors = [np.linalg.norm(Y - W.dot(H), 'fro')]
     k = -1
     for k in range(max_iter):
@@ -185,6 +181,7 @@ class KSVD(BaseEstimator, SparseCodingMixin):
         self.tol = tol
         self.missing_value = missing_value
         self.random_state = random_state
+        self.components_ = None
 
     def fit(self, X, y=None):
         """Fit the model from data in X.
@@ -223,15 +220,16 @@ class KSVD(BaseEstimator, SparseCodingMixin):
         else:
             k0 = self.k0
 
-        # initialize code
-        code_init = random_state.rand(n_samples, n_components)
         # initialize dictionary
-        dict_init = random_state.rand(n_components, n_features)
+        dict_init = None
+        if not self.components_ is None:
+            if self.components_.shape == (n_components, n_features):
+                # Warm Start
+                dict_init = self.components_
 
         code, self.components_, self.error_, self.n_iter_ = _ksvd(
             X, n_components, k0,
             max_iter=self.max_iter, tol=self.tol,
-            code_init=code_init, dict_init=dict_init,
-            mask=mask, n_jobs=self.n_jobs)
+            dict_init=dict_init, mask=mask, n_jobs=self.n_jobs)
 
         return self

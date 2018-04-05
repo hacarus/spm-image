@@ -63,9 +63,25 @@ class TestKSVD(unittest.TestCase):
         model.fit(X)
 
         # check error of learning
-        self.assertTrue(model.error_[-1] < model.error_[0])
+        self.assertTrue(model.error_[-1] <= model.error_[0])
         self.assertTrue(model.n_iter_ <= max_iter)
 
+    def test_ksvd_warm_start(self):
+        k0 = 5
+        n_samples = 128
+        n_features = 32
+        n_components = 16
+        max_iter = 1
+
+        A0, X = self.generate_input(n_samples, n_features, n_components, k0)
+        model = KSVD(n_components=n_components, k0=k0, max_iter=max_iter)
+        
+        prev_error = np.linalg.norm(X, 'fro')
+        for i in range(10):
+            model.fit(X)
+            #print(model.error_)
+            self.assertTrue(model.error_[-1] <= prev_error)
+            prev_error = model.error_[-1]
 
 if __name__ == '__main__':
     unittest.main()
