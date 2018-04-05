@@ -7,7 +7,6 @@ import numpy as np
 
 
 class TestKSVD(unittest.TestCase):
-
     def setUp(self):
         np.random.seed(0)
 
@@ -75,11 +74,11 @@ class TestKSVD(unittest.TestCase):
 
         A0, X = self.generate_input(n_samples, n_features, n_components, k0)
         model = KSVD(n_components=n_components, k0=k0, max_iter=max_iter)
-        
+
         prev_error = np.linalg.norm(X, 'fro')
         for i in range(10):
             model.fit(X)
-            #print(model.error_)
+            # print(model.error_)
             self.assertTrue(model.error_[-1] <= prev_error)
             prev_error = model.error_[-1]
 
@@ -107,13 +106,14 @@ class TestKSVD(unittest.TestCase):
 
         A0, X = self.generate_input(n_samples, n_features, n_components, k0)
         model = KSVD(n_components=n_components, k0=k0, max_iter=max_iter, method='approximate')
-        
+
         prev_error = np.linalg.norm(X, 'fro')
         for i in range(10):
             model.fit(X)
-            #print(model.error_)
+            # print(model.error_)
             self.assertTrue(model.error_[-1] <= prev_error)
             prev_error = model.error_[-1]
+
 
 if __name__ == '__main__':
     unittest.main()

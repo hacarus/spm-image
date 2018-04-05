@@ -11,7 +11,7 @@ logger = getLogger(__name__)
 
 
 def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
-          dict_init: np.ndarray = None, mask: np.ndarray = None, n_jobs: int = 1, method: str=None):
+          dict_init: np.ndarray = None, mask: np.ndarray = None, n_jobs: int = 1, method: str = None):
     """_ksvd
     Finds a dictionary that can be used to represent data using a sparse code.
     Solves the optimization problem:
@@ -59,7 +59,7 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
         H = np.dot(H, np.diag(1. / np.sqrt(np.diag(np.dot(H.T, H)))))
     else:
         H = dict_init
-    
+
     errors = [np.linalg.norm(Y - W.dot(H), 'fro')]
     k = -1
     for k in range(max_iter):
@@ -80,10 +80,9 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
             x = W[:, j] != 0
             if np.sum(x) == 0:
                 continue
-            
 
             if method is "approximate":
-                H[j,:] = 0
+                H[j, :] = 0
                 error = Y[x, :] - np.dot(W[x, :], H)
                 g = W[x, j].T
                 d = error.T.dot(g)
