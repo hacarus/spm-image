@@ -34,8 +34,6 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
             maximum number of iterations to perform
         tol : float,
             tolerance for numerical error
-        code_init : array of shape (n_samples, n_components),
-            Initial value for the sparse code for warm restart scenarios.
         dict_init : array of shape (n_components, n_features),
             initial values for the dictionary, for warm restart
         mask : array-like, shape (n_samples, n_features),
@@ -210,9 +208,6 @@ class KSVD(BaseEstimator, SparseCodingMixin):
             Returns the object itself
         """
 
-        # Turn seed into a np.random.RandomState instance
-        random_state = check_random_state(self.random_state)
-
         # Input validation on an array, list, sparse matrix or similar.
         # By default, the input is converted to an at least 2D numpy array. If the dtype of the array is object, attempt converting to float, raising on failure.
         X = check_array(X)
@@ -235,7 +230,7 @@ class KSVD(BaseEstimator, SparseCodingMixin):
 
         # initialize dictionary
         dict_init = None
-        if not self.components_ is None:
+        if self.components_ is not None:
             if self.components_.shape == (n_components, n_features):
                 # Warm Start
                 dict_init = self.components_
