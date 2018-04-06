@@ -159,7 +159,7 @@ class KSVD(BaseEstimator, SparseCodingMixin):
             If RandomState instance, random_state is the random number generator;
             If None, the random number generator is the RandomState instance used
             by `np.random`.
-        method : {"approximate": approximate KSVD, otherwize: KSVD}
+        method : {'approximate': Approximate KSVD, 'normal': normal KSVD}, 'approximate' by default
 
     Attributes
     ----------
@@ -181,7 +181,7 @@ class KSVD(BaseEstimator, SparseCodingMixin):
                  missing_value=None, transform_algorithm='omp',
                  transform_n_nonzero_coefs=None,
                  transform_alpha=None, n_jobs=1,
-                 split_sign=False, random_state=None, method=None):
+                 split_sign=False, random_state=None, method='approximate'):
         self._set_sparse_coding_params(n_components, transform_algorithm,
                                        transform_n_nonzero_coefs,
                                        transform_alpha, split_sign, n_jobs)

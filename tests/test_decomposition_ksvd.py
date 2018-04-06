@@ -31,7 +31,7 @@ class TestKSVD(unittest.TestCase):
         max_iter = 500
 
         A0, X = generate_dictionary_and_samples(n_samples, n_features, n_components, k0)
-        model = KSVD(n_components=n_components, k0=k0, max_iter=max_iter)
+        model = KSVD(n_components=n_components, k0=k0, max_iter=max_iter, method='normal')
         model.fit(X)
 
         # check error of learning
@@ -58,7 +58,7 @@ class TestKSVD(unittest.TestCase):
 
         A0, X = generate_dictionary_and_samples(n_samples, n_features, n_components, k0)
         X[X < 0.1] = missing_value
-        model = KSVD(n_components=n_components, k0=k0, max_iter=max_iter, missing_value=missing_value)
+        model = KSVD(n_components=n_components, k0=k0, max_iter=max_iter, missing_value=missing_value, method='normal')
         model.fit(X)
 
         # check error of learning
@@ -73,7 +73,7 @@ class TestKSVD(unittest.TestCase):
         max_iter = 1
 
         A0, X = generate_dictionary_and_samples(n_samples, n_features, n_components, k0)
-        model = KSVD(n_components=n_components, k0=k0, max_iter=max_iter)
+        model = KSVD(n_components=n_components, k0=k0, max_iter=max_iter, method='normal')
 
         prev_error = np.linalg.norm(X, 'fro')
         for i in range(10):
