@@ -11,7 +11,7 @@ logger = getLogger(__name__)
 
 
 def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
-          dict_init: np.ndarray = None, mask: np.ndarray = None, n_jobs: int = 1):
+          dict_init: np.ndarray = None, mask: np.ndarray = None, n_jobs: int = 1, method: str = None):
     """_ksvd
     Finds a dictionary that can be used to represent data using a sparse code.
     Solves the optimization problem:
@@ -34,8 +34,6 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
             maximum number of iterations to perform
         tol : float,
             tolerance for numerical error
-        code_init : array of shape (n_samples, n_components),
-            Initial value for the sparse code for warm restart scenarios.
         dict_init : array of shape (n_components, n_features),
             initial values for the dictionary, for warm restart
         mask : array-like, shape (n_samples, n_features),
@@ -61,7 +59,7 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
         H = np.dot(H, np.diag(1. / np.sqrt(np.diag(np.dot(H.T, H)))))
     else:
         H = dict_init
-    
+
     errors = [np.linalg.norm(Y - W.dot(H), 'fro')]
     k = -1
     for k in range(max_iter):
@@ -82,13 +80,23 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
             x = W[:, j] != 0
             if np.sum(x) == 0:
                 continue
-            W[x, j] = 0
 
-            error = Y[x, :] - np.dot(W[x, :], H)
-
-            U, s, V = np.linalg.svd(error)
-            W[x, j] = U[:, 0] * s[0]
-            H[j, :] = V.T[:, 0]
+            if method == 'approximate':
+                H[j, :] = 0
+                error = Y[x, :] - np.dot(W[x, :], H)
+                g = W[x, j].T
+                d = error.T.dot(g)
+                d /= np.linalg.norm(d)
+                g = error.dot(d)
+                W[x, j] = g.T
+                H[j, :] = d
+            else:
+                # normal ksvd
+                W[x, j] = 0
+                error = Y[x, :] - np.dot(W[x, :], H)
+                U, s, V = np.linalg.svd(error)
+                W[x, j] = U[:, 0] * s[0]
+                H[j, :] = V.T[:, 0]
 
         errors.append(np.linalg.norm(Y - W.dot(H), 'fro'))
         if np.abs(errors[-1] - errors[-2]) < tol:
@@ -151,6 +159,7 @@ class KSVD(BaseEstimator, SparseCodingMixin):
             If RandomState instance, random_state is the random number generator;
             If None, the random number generator is the RandomState instance used
             by `np.random`.
+        method : {'approximate': Approximate KSVD, 'normal': normal KSVD}, 'approximate' by default
 
     Attributes
     ----------
@@ -172,7 +181,7 @@ class KSVD(BaseEstimator, SparseCodingMixin):
                  missing_value=None, transform_algorithm='omp',
                  transform_n_nonzero_coefs=None,
                  transform_alpha=None, n_jobs=1,
-                 split_sign=False, random_state=None):
+                 split_sign=False, random_state=None, method='approximate'):
         self._set_sparse_coding_params(n_components, transform_algorithm,
                                        transform_n_nonzero_coefs,
                                        transform_alpha, split_sign, n_jobs)
@@ -181,6 +190,7 @@ class KSVD(BaseEstimator, SparseCodingMixin):
         self.tol = tol
         self.missing_value = missing_value
         self.random_state = random_state
+        self.method = method
         self.components_ = None
 
     def fit(self, X, y=None):
@@ -196,9 +206,6 @@ class KSVD(BaseEstimator, SparseCodingMixin):
         self : object
             Returns the object itself
         """
-
-        # Turn seed into a np.random.RandomState instance
-        random_state = check_random_state(self.random_state)
 
         # Input validation on an array, list, sparse matrix or similar.
         # By default, the input is converted to an at least 2D numpy array. If the dtype of the array is object, attempt converting to float, raising on failure.
@@ -222,7 +229,7 @@ class KSVD(BaseEstimator, SparseCodingMixin):
 
         # initialize dictionary
         dict_init = None
-        if not self.components_ is None:
+        if self.components_ is not None:
             if self.components_.shape == (n_components, n_features):
                 # Warm Start
                 dict_init = self.components_
@@ -230,6 +237,6 @@ class KSVD(BaseEstimator, SparseCodingMixin):
         code, self.components_, self.error_, self.n_iter_ = _ksvd(
             X, n_components, k0,
             max_iter=self.max_iter, tol=self.tol,
-            dict_init=dict_init, mask=mask, n_jobs=self.n_jobs)
+            dict_init=dict_init, mask=mask, n_jobs=self.n_jobs, method=self.method)
 
         return self
