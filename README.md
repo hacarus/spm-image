@@ -47,7 +47,7 @@ jupyter notebook
 You can run all test cases just like this
 
 ```
-python -m unittest tests/test_*.py
+python -m unittest discover
 ```
 
 Or run specific test case as follows
