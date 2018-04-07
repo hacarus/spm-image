@@ -46,7 +46,8 @@ class LassoADMM(LinearModel, RegressorMixin):
 
         X, y, X_offset, y_offset, X_scale = \
             _preprocess_data(X, y, fit_intercept=self.fit_intercept,
-                             normalize=self.normalize, copy=False)
+                             normalize=self.normalize,
+                             copy=self.copy_X and not check_input)
 
         if y.ndim == 1:
             y = y[:, np.newaxis]
