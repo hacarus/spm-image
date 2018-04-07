@@ -125,7 +125,6 @@ class TestLassoADMM(unittest.TestCase):
 
         clf = LassoADMM(alpha=0.05, max_iter=max_iter).fit(X, y)
         assert_greater(clf.score(X_test, y_test), 0.99)
-        # ADMM converges very fast
         assert_less(clf.n_iter_, 100)
 
         clf = LassoADMM(alpha=0.05, fit_intercept=False,
