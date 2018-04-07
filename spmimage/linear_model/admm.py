@@ -18,7 +18,7 @@ class LassoADMM(LinearModel, RegressorMixin):
 
     def __init__(self, alpha=1.0, rho=1.0, fit_intercept=True,
                  normalize=False, copy_X=True, max_iter=1000,
-                 tol=0.0001, warm_start=False):
+                 tol=0.0001):
         self.alpha = alpha
         self.rho = rho
         self.fit_intercept = fit_intercept
@@ -26,6 +26,7 @@ class LassoADMM(LinearModel, RegressorMixin):
         self.copy_X = copy_X
         self.max_iter = max_iter
         self.tol = tol
+
         self.threshold = alpha / rho
         self.coef_ = None
 
@@ -104,4 +105,4 @@ class LassoADMM(LinearModel, RegressorMixin):
         if n_targets == 1:
             self.n_iter_ = self.n_iter_[0]
 
-        return np.squeeze(w_t)
+        return np.squeeze(z_t)
