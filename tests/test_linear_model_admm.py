@@ -2,11 +2,8 @@ import unittest
 
 import numpy as np
 from spmimage.linear_model import LassoADMM
-from sklearn.utils.testing import assert_array_almost_equal
-from sklearn.utils.testing import assert_almost_equal
-from sklearn.utils.testing import assert_greater
-from sklearn.utils.testing import assert_less
-
+from numpy.testing import assert_array_almost_equal
+from numpy.testing import assert_almost_equal
 
 def build_dataset(n_samples=50, n_features=200, n_informative_features=10,
                   n_targets=1):
@@ -124,17 +121,17 @@ class TestLassoADMM(unittest.TestCase):
         max_iter = 1000
 
         clf = LassoADMM(alpha=0.05, max_iter=max_iter).fit(X, y)
-        assert_greater(clf.score(X_test, y_test), 0.99)
-        assert_less(clf.n_iter_, 100)
+        self.assertGreater(clf.score(X_test, y_test), 0.99)
+        self.assertLess(clf.n_iter_, 100)
 
         clf = LassoADMM(alpha=0.05, fit_intercept=False,
                         max_iter=max_iter).fit(X, y)
-        assert_greater(clf.score(X_test, y_test), 0.99)
+        self.assertGreater(clf.score(X_test, y_test), 0.99)
 
         # normalize doesn't seem to work well
         clf = LassoADMM(alpha=0.144, rho=0.1, normalize=True,
                         max_iter=max_iter).fit(X, y)
-        assert_greater(clf.score(X_test, y_test), 0.60)
+        self.assertGreater(clf.score(X_test, y_test), 0.60)
 
 
 if __name__ == '__main__':
