@@ -1,4 +1,4 @@
-# spm-image : Sparse modeling and Compressive sensing in Python
+# spm-image : Sparse modeling and Compressive sensing in Python [![Build Status](https://travis-ci.org/hacarus/spm-image.svg?branch=development)](https://travis-ci.org/hacarus/spm-image)
 
 spm-image is a Python library for image analysis using sparse modeling and compressive sensing.
 
@@ -47,7 +47,7 @@ jupyter notebook
 You can run all test cases just like this
 
 ```
-python -m unittest tests/test_*.py
+python -m unittest discover
 ```
 
 Or run specific test case as follows
