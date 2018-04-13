@@ -114,6 +114,46 @@ class TestKSVD(unittest.TestCase):
             self.assertTrue(model.error_[-1] <= prev_error)
             prev_error = model.error_[-1]
 
+    def test_transform(self):
+        k0 = 4
+        n_samples = 128
+        n_features = 32
+        n_components = 24
+        max_iter = 500
+
+        A0, X = generate_dictionary_and_samples(n_samples, n_features, n_components, k0)
+        model = KSVD(n_components=n_components, k0=k0, max_iter=max_iter, method='normal', transform_n_nonzero_coefs=k0)
+        model.fit(X)
+
+        # check error of learning
+        code = model.transform(X)
+        err = np.linalg.norm(X-code.dot(model.components_), 'fro')
+        #print(err, model.error_[-1])
+        self.assertTrue(err <= model.error_[-1])
+        self.assertTrue(model.n_iter_ <= max_iter)
+
+    def test_transform_with_mask(self):
+        k0 = 4
+        n_samples = 128
+        n_features = 32
+        n_components = 16
+        max_iter = 100
+        missing_value = 0
+
+        A0, X = generate_dictionary_and_samples(n_samples, n_features, n_components, k0)
+        X[X < 0.1] = missing_value
+        mask = np.where(X == missing_value, 0, 1)
+
+        model = KSVD(n_components=n_components, k0=k0, max_iter=max_iter, missing_value=missing_value, method='normal', transform_n_nonzero_coefs=k0)
+        model.fit(X)
+
+        # check error of learning
+        code = model.transform(X)
+        err = np.linalg.norm(mask*(X-code.dot(model.components_)), 'fro')
+        print(err, model.error_[-1])
+        self.assertTrue(err <= model.error_[-1])
+        self.assertTrue(model.n_iter_ <= max_iter)
+
 
 if __name__ == '__main__':
     unittest.main()

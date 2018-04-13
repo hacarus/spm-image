@@ -5,8 +5,8 @@ import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.decomposition.dict_learning import SparseCodingMixin, sparse_encode
 from sklearn.utils import check_array
+from sklearn.utils.validation import check_is_fitted
 from sklearn.externals.joblib import Parallel, delayed
-
 from .dict_learning import sparse_encode_with_mask
 
 logger = getLogger(__name__)
@@ -39,7 +39,7 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
         dict_init : array of shape (n_components, n_features),
             initial values for the dictionary, for warm restart
         mask : array-like, shape (n_samples, n_features),
-            value at (i,j) in mask is 1 indicates value at (i,j) in Y is missing
+            value at (i,j) in mask is not 1 indicates value at (i,j) in Y is missing
         n_jobs : int, optional
             Number of parallel jobs to run.
     Returns:
@@ -212,7 +212,7 @@ class KSVD(BaseEstimator, SparseCodingMixin):
 
         mask = None
         if self.missing_value is not None:
-            mask = np.where(X == self.missing_value, 1, 0)
+            mask = np.where(X == self.missing_value, 0, 1)
 
         if self.k0 is None:
             k0 = n_features
@@ -236,4 +236,39 @@ class KSVD(BaseEstimator, SparseCodingMixin):
         return self
 
     def transform(self, X):
-        return super().transform(X)
+        """Encode the data as a sparse combination of the dictionary atoms.
+        Coding method is determined by the object parameter
+        `transform_algorithm`.
+        Parameters
+        ----------
+        X : array of shape (n_samples, n_features)
+            Test data to be transformed, must have the same number of
+            features as the data used to train the model.
+        Returns
+        -------
+        code : array, shape (n_samples, n_components)
+            Transformed data
+        """
+        if self.missing_value is not None:
+            check_is_fitted(self, 'components_')
+
+            X = check_array(X)
+
+            mask = np.where(X == self.missing_value, 0, 1)
+
+            code = sparse_encode_with_mask(
+                X, self.components_, mask, algorithm=self.transform_algorithm,
+                n_nonzero_coefs=self.transform_n_nonzero_coefs,
+                alpha=self.transform_alpha, n_jobs=self.n_jobs)
+
+            if self.split_sign:
+                # feature vector is split into a positive and negative side
+                n_samples, n_features = code.shape
+                split_code = np.empty((n_samples, 2 * n_features))
+                split_code[:, :n_features] = np.maximum(code, 0)
+                split_code[:, n_features:] = -np.minimum(code, 0)
+                code = split_code
+            return code
+
+        else:
+            return super().transform(X)
