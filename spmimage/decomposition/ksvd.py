@@ -12,7 +12,7 @@ from .dict_learning import sparse_encode_with_mask
 logger = getLogger(__name__)
 
 
-def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
+def _ksvd(Y: np.ndarray, n_components: int, n_nonzer_coefs: int, max_iter: int, tol: float,
           dict_init: np.ndarray = None, mask: np.ndarray = None, n_jobs: int = 1, method: str = None):
     """_ksvd
     Finds a dictionary that can be used to represent data using a sparse code.
@@ -30,7 +30,7 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
             and n_features is the number of features.
         n_components : int,
             number of dictionary elements to extract
-        k0 : int,
+        n_nonzer_coefs : int,
             number of non-zero elements of sparse coding
         max_iter : int,
             maximum number of iterations to perform
@@ -66,9 +66,9 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
     k = -1
     for k in range(max_iter):
         if mask is None:
-            W = sparse_encode(Y, H, algorithm='omp', n_nonzero_coefs=k0, n_jobs=n_jobs)
+            W = sparse_encode(Y, H, algorithm='omp', n_nonzero_coefs=n_nonzer_coefs, n_jobs=n_jobs)
         else:
-            W = sparse_encode_with_mask(Y, H, mask, algorithm='omp', n_nonzero_coefs=k0, n_jobs=n_jobs)
+            W = sparse_encode_with_mask(Y, H, mask, algorithm='omp', n_nonzero_coefs=n_nonzer_coefs, n_jobs=n_jobs)
 
         for j in range(n_components):
             x = W[:, j] != 0
@@ -110,8 +110,6 @@ class KSVD(BaseEstimator, SparseCodingMixin):
     ----------
         n_components : int,
             number of dictionary elements to extract
-        k0 : int,
-            number of non-zero elements of sparse coding
         max_iter : int,
             maximum number of iterations to perform
         tol : float,
@@ -171,7 +169,7 @@ class KSVD(BaseEstimator, SparseCodingMixin):
 
     """
 
-    def __init__(self, n_components=None, k0=None, max_iter=1000, tol=1e-8,
+    def __init__(self, n_components=None, max_iter=1000, tol=1e-8,
                  missing_value=None, transform_algorithm='omp',
                  transform_n_nonzero_coefs=None,
                  transform_alpha=None, n_jobs=1,
@@ -179,7 +177,6 @@ class KSVD(BaseEstimator, SparseCodingMixin):
         self._set_sparse_coding_params(n_components, transform_algorithm,
                                        transform_n_nonzero_coefs,
                                        transform_alpha, split_sign, n_jobs)
-        self.k0 = k0
         self.max_iter = max_iter
         self.tol = tol
         self.missing_value = missing_value
@@ -214,13 +211,6 @@ class KSVD(BaseEstimator, SparseCodingMixin):
         if self.missing_value is not None:
             mask = np.where(X == self.missing_value, 0, 1)
 
-        if self.k0 is None:
-            k0 = n_features
-        elif self.k0 > n_features:
-            k0 = n_features
-        else:
-            k0 = self.k0
-
         # initialize dictionary
         dict_init = None
         if self.components_ is not None:
@@ -229,7 +219,7 @@ class KSVD(BaseEstimator, SparseCodingMixin):
                 dict_init = self.components_
 
         code, self.components_, self.error_, self.n_iter_ = _ksvd(
-            X, n_components, k0,
+            X, n_components, self.transform_n_nonzero_coefs,
             max_iter=self.max_iter, tol=self.tol,
             dict_init=dict_init, mask=mask, n_jobs=self.n_jobs, method=self.method)
 
