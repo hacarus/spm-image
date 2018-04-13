@@ -12,7 +12,7 @@ from .dict_learning import sparse_encode_with_mask
 logger = getLogger(__name__)
 
 
-def _ksvd(Y: np.ndarray, n_components: int, n_nonzer_coefs: int, max_iter: int, tol: float,
+def _ksvd(Y: np.ndarray, n_components: int, n_nonzero_coefs: int, max_iter: int, tol: float,
           dict_init: np.ndarray = None, mask: np.ndarray = None, n_jobs: int = 1, method: str = None):
     """_ksvd
     Finds a dictionary that can be used to represent data using a sparse code.
@@ -30,7 +30,7 @@ def _ksvd(Y: np.ndarray, n_components: int, n_nonzer_coefs: int, max_iter: int, 
             and n_features is the number of features.
         n_components : int,
             number of dictionary elements to extract
-        n_nonzer_coefs : int,
+        n_nonzero_coefs : int,
             number of non-zero elements of sparse coding
         max_iter : int,
             maximum number of iterations to perform
@@ -66,9 +66,9 @@ def _ksvd(Y: np.ndarray, n_components: int, n_nonzer_coefs: int, max_iter: int, 
     k = -1
     for k in range(max_iter):
         if mask is None:
-            W = sparse_encode(Y, H, algorithm='omp', n_nonzero_coefs=n_nonzer_coefs, n_jobs=n_jobs)
+            W = sparse_encode(Y, H, algorithm='omp', n_nonzero_coefs=n_nonzero_coefs, n_jobs=n_jobs)
         else:
-            W = sparse_encode_with_mask(Y, H, mask, algorithm='omp', n_nonzero_coefs=n_nonzer_coefs, n_jobs=n_jobs)
+            W = sparse_encode_with_mask(Y, H, mask, algorithm='omp', n_nonzero_coefs=n_nonzero_coefs, n_jobs=n_jobs)
 
         for j in range(n_components):
             x = W[:, j] != 0
