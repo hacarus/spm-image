@@ -58,7 +58,7 @@ def _ksvd(Y: np.ndarray, n_components: int, n_nonzero_coefs: int, max_iter: int,
     W = np.zeros((Y.shape[0], n_components))
     if dict_init is None:
         H = Y[:n_components, :]
-        H = np.dot(H, np.diag(1. / np.sqrt(np.diag(np.dot(H.T, H)))))
+        #H = np.dot(H, np.diag(1. / np.sqrt(np.diag(np.dot(H.T, H)))))
     else:
         H = dict_init
 
