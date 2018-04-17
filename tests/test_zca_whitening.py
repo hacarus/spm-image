@@ -23,27 +23,28 @@ class TestZCAWhitening(unittest.TestCase):
 
         # This must raise error
         #model = WhiteningScaler()
-        #X_whiten = model.fit(X)
+        #X_whiten = model.fit_transform(X)
 
         # This must raise error
         #model = WhiteningScaler(eps=-1, thresholding='normalize')
-        #X_whiten = model.fit(X)
+        #X_whiten = model.fit_transform(X)
 
         # This must raise error
         #model = WhiteningScaler(eps=-1, thresholding='drop_minute')
-        #X_whiten = model.fit(X)
+        #X_whiten = model.fit_transform(X)
 
         model = WhiteningScaler(eps=1e-6, thresholding='normalize')
-        X_whiten = model.fit(X)
+        X_whiten = model.fit_transform(X)
         check = np.array([[ -1.15206e+00, -7.80281e-02, 2.04709e-10],
                           [  6.43604e-01, -9.58699e-01, 5.91895e-11],
                           [  5.08455e-01, 1.03673e+00, -5.42803e-11]])
+        print(type(X_whiten), type(check))
         assert_array_almost_equal(X_whiten, check, decimal=4)
         assert_array_almost_equal(np.cov(X_whiten.T),
                                     np.diag([1, 1, 0]), decimal=4)
 
         model = WhiteningScaler(eps=1e-8, thresholding='drop_minute')
-        X_whiten = model.fit(X)
+        X_whiten = model.fit_transform(X)
         check = np.array([[-1.15206, -0.07803],
                           [ 0.64361, -0.95870],
                           [ 0.50846, 1.03673]])
@@ -52,7 +53,7 @@ class TestZCAWhitening(unittest.TestCase):
                                     np.diag([1, 1]), decimal=4)
 
         model = WhiteningScaler(eps=1e-8, thresholding='normalize', unbiased=False)
-        X_whiten = model.fit(X)
+        X_whiten = model.fit_transform(X)
         check = np.array([[-1.4142e+00, -1.4345e-17, 1.8453e-08],
                           [7.0711e-01, -1.2247e+00, -3.8987e-09],
                           [7.0711e-01, 1.2247e+00, 6.7568e-09]])
@@ -63,7 +64,7 @@ class TestZCAWhitening(unittest.TestCase):
                                     np.diag([1, 1, 0]), decimal=4)
 
         model = WhiteningScaler(eps=1e-8, thresholding='drop_minute', apply_zca=True)
-        X_whiten = model.fit(X)
+        X_whiten = model.fit_transform(X)
         check = np.array([[ 0.94281, -0.4714, -0.4714 ],
                           [-0.47140, 0.94281, -0.47140],
                           [-0.47140, -0.47140, 0.94281]])
