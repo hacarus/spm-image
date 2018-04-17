@@ -77,9 +77,9 @@ No such parameter: thresholding={0}.
         return (X, s, V, n_components)
 
     def fit(self, X):
-        X, s, V, n_components = self._fit(X)
+        X_transformed, s, V, n_components = self._fit(X)
 
-        self.components_ = X
+        self.components_ = X_transformed
         self.var_ = s
         self.unitary_ = V
         self.n_components = n_components
@@ -93,15 +93,15 @@ No such parameter: thresholding={0}.
             return X_transformed.dot(self.unitary_)
         return X_transformed
 
-    def fit_transform(self):
-        X, s, V, n_components = self._fit(X)
+    def fit_transform(self, X):
+        X_transformed, s, V, n_components = self._fit(X)
 
-        self.components_ = X
+        self.components_ = X_transformed
         self.var_ = s
         self.unitary_ = V
         self.n_components = n_components
 
-        return X
+        return X_transformed
 
     def inverse_transform(self, X):
         S = np.diag(self.var_)
