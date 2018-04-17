@@ -22,7 +22,7 @@ class WhiteningScaler(BaseEstimator, TransformerMixin):
 
     def _fit(self, X):
         if sparse.issparse(X):
-            logger.error("""
+            raise ValueError("""
 WhiteningScaler does not support sparse input. See TruncatedSVD for a possible alternative.
 """)
 
@@ -43,28 +43,27 @@ WhiteningScaler does not support sparse input. See TruncatedSVD for a possible a
 
         if self.eps <= 0 and (self.thresholding == 'normalize'
                                 or self.thresholding == 'drop_minute'):
-            logger.error("""
+            raise ValueError("""
 Threshold eps must be positive: eps={0}.
 """.format(self.eps))
 
         if self.thresholding is None:
             if np.any(np.isclose(s, np.zeros(s.shape), atol=1e-10)):
-                logger.error("""
+                raise ValueError("""
 Eigenvalues of X' are degenerated: X'=X-np.mean(X,axis=0), \
 try normalize=True or drop_minute=True.
 """)
         elif self.thresholding == 'normalize':
             s += self.eps
-            n_components = s.shape[0]
         elif self.thresholding == 'drop_minute':
             s = s[s > self.eps]
-            n_components = s.shape[0]
-            V = V[:n_components]
+            V = V[:s.shape[0]]
         else:
-            logger.error("""
+            raise ValueError("""
 No such parameter: thresholding={0}.
 """.format(self.thresholding))
 
+        n_components = s.shape[0]
         S_inv = np.diag(np.ones(s.shape[0]) / s)
 
         # Decorrelation & Whitening

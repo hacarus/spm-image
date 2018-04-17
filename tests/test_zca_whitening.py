@@ -9,10 +9,6 @@ from numpy.testing import assert_almost_equal
 
 logger = logging.getLogger('spmimage.preprocessing.data')
 
-def build_dataset():
-    pass
-
-
 class TestZCAWhitening(unittest.TestCase):
     def test_whitening(self):
         X = np.array([[1,0,0],
@@ -21,27 +17,25 @@ class TestZCAWhitening(unittest.TestCase):
 
         self.assertEqual(np.linalg.matrix_rank(X - np.mean(X, axis=0)), 2)
 
-        # This must raise error
-        #model = WhiteningScaler()
-        #X_whiten = model.fit_transform(X)
+        model = WhiteningScaler()
+        self.assertRaises(ValueError, model.fit_transform, X)
 
-        # This must raise error
-        #model = WhiteningScaler(eps=-1, thresholding='normalize')
-        #X_whiten = model.fit_transform(X)
+        model = WhiteningScaler(eps=-1, thresholding='normalize')
+        self.assertRaises(ValueError, model.fit_transform, X)
 
-        # This must raise error
-        #model = WhiteningScaler(eps=-1, thresholding='drop_minute')
-        #X_whiten = model.fit_transform(X)
+        model = WhiteningScaler(eps=-1, thresholding='drop_minute')
+        self.assertRaises(ValueError, model.fit_transform, X)
 
         model = WhiteningScaler(eps=1e-6, thresholding='normalize')
         X_whiten = model.fit_transform(X)
         check = np.array([[ -1.15206e+00, -7.80281e-02, 2.04709e-10],
                           [  6.43604e-01, -9.58699e-01, 5.91895e-11],
                           [  5.08455e-01, 1.03673e+00, -5.42803e-11]])
-        print(type(X_whiten), type(check))
         assert_array_almost_equal(X_whiten, check, decimal=4)
         assert_array_almost_equal(np.cov(X_whiten.T),
                                     np.diag([1, 1, 0]), decimal=4)
+        X_itransformed = model.inverse_transform(X_whiten)
+        assert_array_almost_equal(X, X_itransformed)
 
         model = WhiteningScaler(eps=1e-8, thresholding='drop_minute')
         X_whiten = model.fit_transform(X)
@@ -51,6 +45,8 @@ class TestZCAWhitening(unittest.TestCase):
         assert_array_almost_equal(X_whiten, check, decimal=4)
         assert_array_almost_equal(np.cov(X_whiten.T),
                                     np.diag([1, 1]), decimal=4)
+        X_itransformed = model.inverse_transform(X_whiten)
+        assert_array_almost_equal(X, X_itransformed)
 
         model = WhiteningScaler(eps=1e-8, thresholding='normalize', unbiased=False)
         X_whiten = model.fit_transform(X)
@@ -62,6 +58,8 @@ class TestZCAWhitening(unittest.TestCase):
                                     np.diag([1.5, 1.5, 0]), decimal=4)
         assert_array_almost_equal(np.cov(X_whiten.T) * (2 / 3),
                                     np.diag([1, 1, 0]), decimal=4)
+        X_itransformed = model.inverse_transform(X_whiten)
+        assert_array_almost_equal(X, X_itransformed)
 
         model = WhiteningScaler(eps=1e-8, thresholding='drop_minute', apply_zca=True)
         X_whiten = model.fit_transform(X)
@@ -74,6 +72,8 @@ class TestZCAWhitening(unittest.TestCase):
                                           [-0.3333,  0.6667, -0.3333],
                                           [-0.3333, -0.3333,  0.6667]]),
                                 decimal=4)
+        X_itransformed = model.inverse_transform(X_whiten)
+        assert_array_almost_equal(X, X_itransformed)
 
 
 if __name__ == '__main__':
