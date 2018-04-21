@@ -6,7 +6,6 @@ from sklearn.base import BaseEstimator
 from sklearn.decomposition.dict_learning import SparseCodingMixin, sparse_encode
 from sklearn.utils import check_array
 from sklearn.utils.validation import check_is_fitted
-from sklearn.externals.joblib import Parallel, delayed
 from .dict_learning import sparse_encode_with_mask
 
 logger = getLogger(__name__)
@@ -58,7 +57,7 @@ def _ksvd(Y: np.ndarray, n_components: int, n_nonzero_coefs: int, max_iter: int,
     W = np.zeros((Y.shape[0], n_components))
     if dict_init is None:
         H = Y[:n_components, :]
-        #H = np.dot(H, np.diag(1. / np.sqrt(np.diag(np.dot(H.T, H)))))
+        H = np.dot(H, np.diag(1. / np.sqrt(np.diag(np.dot(H.T, H)))))
     else:
         H = dict_init
 
@@ -213,10 +212,9 @@ class KSVD(BaseEstimator, SparseCodingMixin):
 
         # initialize dictionary
         dict_init = None
-        if self.components_ is not None:
-            if self.components_.shape == (n_components, n_features):
-                # Warm Start
-                dict_init = self.components_
+        if self.components_ is not None and self.components_.shape == (n_components, n_features):
+            # Warm Start
+            dict_init = self.components_
 
         code, self.components_, self.error_, self.n_iter_ = _ksvd(
             X, n_components, self.transform_n_nonzero_coefs,
