@@ -1,22 +1,10 @@
 import unittest
-from typing import Tuple
 
 from spmimage.decomposition import KSVD
 
 import numpy as np
 
-
-def generate_dictionary_and_samples(n_samples: int, n_features: int, n_components: int, n_nonzero_coefs: int) \
-        -> Tuple[np.ndarray, np.ndarray]:
-    # random dictionary base
-    A0 = np.random.randn(n_components, n_features)
-    A0 = np.dot(A0, np.diag(1. / np.sqrt(np.diag(np.dot(A0.T, A0)))))
-
-    X = np.zeros((n_samples, n_features))
-    for i in range(n_samples):
-        # select n_nonzero_coefs components from dictionary
-        X[i, :] = np.dot(np.random.randn(n_nonzero_coefs), A0[np.random.permutation(range(n_components))[:n_nonzero_coefs], :])
-    return A0, X
+from tests.utils import generate_dictionary_and_samples
 
 
 class TestKSVD(unittest.TestCase):
@@ -31,7 +19,8 @@ class TestKSVD(unittest.TestCase):
         max_iter = 500
 
         A0, X = generate_dictionary_and_samples(n_samples, n_features, n_components, n_nonzero_coefs)
-        model = KSVD(n_components=n_components, transform_n_nonzero_coefs=n_nonzero_coefs, max_iter=max_iter, method='normal')
+        model = KSVD(n_components=n_components, transform_n_nonzero_coefs=n_nonzero_coefs, max_iter=max_iter,
+                     method='normal')
         model.fit(X)
 
         # check error of learning
@@ -58,7 +47,8 @@ class TestKSVD(unittest.TestCase):
 
         A0, X = generate_dictionary_and_samples(n_samples, n_features, n_components, n_nonzero_coefs)
         X[X < 0.1] = missing_value
-        model = KSVD(n_components=n_components, transform_n_nonzero_coefs=n_nonzero_coefs, max_iter=max_iter, missing_value=missing_value, method='normal')
+        model = KSVD(n_components=n_components, transform_n_nonzero_coefs=n_nonzero_coefs, max_iter=max_iter,
+                     missing_value=missing_value, method='normal')
         model.fit(X)
 
         # check error of learning
@@ -73,7 +63,8 @@ class TestKSVD(unittest.TestCase):
         max_iter = 1
 
         A0, X = generate_dictionary_and_samples(n_samples, n_features, n_components, n_nonzero_coefs)
-        model = KSVD(n_components=n_components, transform_n_nonzero_coefs=n_nonzero_coefs, max_iter=max_iter, method='normal')
+        model = KSVD(n_components=n_components, transform_n_nonzero_coefs=n_nonzero_coefs, max_iter=max_iter,
+                     method='normal')
 
         prev_error = np.linalg.norm(X, 'fro')
         for i in range(10):
@@ -90,7 +81,8 @@ class TestKSVD(unittest.TestCase):
         max_iter = 10
 
         A0, X = generate_dictionary_and_samples(n_samples, n_features, n_components, n_nonzero_coefs)
-        model = KSVD(n_components=n_components, transform_n_nonzero_coefs=n_nonzero_coefs, max_iter=max_iter, method='approximate')
+        model = KSVD(n_components=n_components, transform_n_nonzero_coefs=n_nonzero_coefs, max_iter=max_iter,
+                     method='approximate')
         model.fit(X)
 
         # check error of learning
@@ -105,7 +97,8 @@ class TestKSVD(unittest.TestCase):
         max_iter = 1
 
         A0, X = generate_dictionary_and_samples(n_samples, n_features, n_components, n_nonzero_coefs)
-        model = KSVD(n_components=n_components, transform_n_nonzero_coefs=n_nonzero_coefs, max_iter=max_iter, method='approximate')
+        model = KSVD(n_components=n_components, transform_n_nonzero_coefs=n_nonzero_coefs, max_iter=max_iter,
+                     method='approximate')
 
         prev_error = np.linalg.norm(X, 'fro')
         for i in range(10):
@@ -122,12 +115,13 @@ class TestKSVD(unittest.TestCase):
         max_iter = 500
 
         A0, X = generate_dictionary_and_samples(n_samples, n_features, n_components, n_nonzero_coefs)
-        model = KSVD(n_components=n_components, transform_n_nonzero_coefs=n_nonzero_coefs, max_iter=max_iter, method='normal')
+        model = KSVD(n_components=n_components, transform_n_nonzero_coefs=n_nonzero_coefs, max_iter=max_iter,
+                     method='normal')
         model.fit(X)
 
         # check error of learning
         code = model.transform(X)
-        err = np.linalg.norm(X-code.dot(model.components_), 'fro')
+        err = np.linalg.norm(X - code.dot(model.components_), 'fro')
         self.assertTrue(err <= model.error_[-1])
         self.assertTrue(model.n_iter_ <= max_iter)
 
@@ -143,12 +137,13 @@ class TestKSVD(unittest.TestCase):
         X[X < 0.1] = missing_value
         mask = np.where(X == missing_value, 0, 1)
 
-        model = KSVD(n_components=n_components, transform_n_nonzero_coefs=n_nonzero_coefs, max_iter=max_iter, missing_value=missing_value, method='normal')
+        model = KSVD(n_components=n_components, transform_n_nonzero_coefs=n_nonzero_coefs, max_iter=max_iter,
+                     missing_value=missing_value, method='normal')
         model.fit(X)
 
         # check error of learning
         code = model.transform(X)
-        err = np.linalg.norm(mask*(X-code.dot(model.components_)), 'fro')
+        err = np.linalg.norm(mask * (X - code.dot(model.components_)), 'fro')
         self.assertTrue(err <= model.error_[-1])
         self.assertTrue(model.n_iter_ <= max_iter)
 
