@@ -4,13 +4,14 @@ import numpy as np
 
 from sklearn.base import BaseEstimator
 from sklearn.decomposition.dict_learning import SparseCodingMixin, sparse_encode
-from sklearn.utils import check_array, check_random_state
-from sklearn.externals.joblib import Parallel, delayed
+from sklearn.utils import check_array
+from sklearn.utils.validation import check_is_fitted
+from .dict_learning import sparse_encode_with_mask
 
 logger = getLogger(__name__)
 
 
-def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
+def _ksvd(Y: np.ndarray, n_components: int, n_nonzero_coefs: int, max_iter: int, tol: float,
           dict_init: np.ndarray = None, mask: np.ndarray = None, n_jobs: int = 1, method: str = None):
     """_ksvd
     Finds a dictionary that can be used to represent data using a sparse code.
@@ -28,7 +29,7 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
             and n_features is the number of features.
         n_components : int,
             number of dictionary elements to extract
-        k0 : int,
+        n_nonzero_coefs : int,
             number of non-zero elements of sparse coding
         max_iter : int,
             maximum number of iterations to perform
@@ -37,7 +38,7 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
         dict_init : array of shape (n_components, n_features),
             initial values for the dictionary, for warm restart
         mask : array-like, shape (n_samples, n_features),
-            value at (i,j) in mask is 1 indicates value at (i,j) in Y is missing
+            value at (i,j) in mask is not 1 indicates value at (i,j) in Y is missing
         n_jobs : int, optional
             Number of parallel jobs to run.
     Returns:
@@ -55,7 +56,7 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
 
     W = np.zeros((Y.shape[0], n_components))
     if dict_init is None:
-        H = Y[:n_components, :]
+        H = np.random.rand(n_components, Y.shape[1])
         H = np.dot(H, np.diag(1. / np.sqrt(np.diag(np.dot(H.T, H)))))
     else:
         H = dict_init
@@ -64,17 +65,9 @@ def _ksvd(Y: np.ndarray, n_components: int, k0: int, max_iter: int, tol: float,
     k = -1
     for k in range(max_iter):
         if mask is None:
-            W = sparse_encode(Y, H, algorithm='omp',
-                              n_nonzero_coefs=k0, n_jobs=n_jobs)
+            W = sparse_encode(Y, H, algorithm='omp', n_nonzero_coefs=n_nonzero_coefs, n_jobs=n_jobs)
         else:
-            codes = Parallel(n_jobs=n_jobs)(
-                delayed(sparse_encode)(
-                    Y[idx, :][mask[idx, :] == 1].reshape(1, -1),
-                    H[:, mask[idx, :] == 1],
-                    algorithm='omp', n_nonzero_coefs=k0
-                ) for idx in range(Y.shape[0]))
-            for idx, code in zip(range(Y.shape[0]), codes):
-                W[idx, :] = code
+            W = sparse_encode_with_mask(Y, H, mask, algorithm='omp', n_nonzero_coefs=n_nonzero_coefs, n_jobs=n_jobs)
 
         for j in range(n_components):
             x = W[:, j] != 0
@@ -116,8 +109,6 @@ class KSVD(BaseEstimator, SparseCodingMixin):
     ----------
         n_components : int,
             number of dictionary elements to extract
-        k0 : int,
-            number of non-zero elements of sparse coding
         max_iter : int,
             maximum number of iterations to perform
         tol : float,
@@ -177,7 +168,7 @@ class KSVD(BaseEstimator, SparseCodingMixin):
 
     """
 
-    def __init__(self, n_components=None, k0=None, max_iter=1000, tol=1e-8,
+    def __init__(self, n_components=None, max_iter=1000, tol=1e-8,
                  missing_value=None, transform_algorithm='omp',
                  transform_n_nonzero_coefs=None,
                  transform_alpha=None, n_jobs=1,
@@ -185,7 +176,6 @@ class KSVD(BaseEstimator, SparseCodingMixin):
         self._set_sparse_coding_params(n_components, transform_algorithm,
                                        transform_n_nonzero_coefs,
                                        transform_alpha, split_sign, n_jobs)
-        self.k0 = k0
         self.max_iter = max_iter
         self.tol = tol
         self.missing_value = missing_value
@@ -218,25 +208,55 @@ class KSVD(BaseEstimator, SparseCodingMixin):
 
         mask = None
         if self.missing_value is not None:
-            mask = np.where(X == self.missing_value, 1, 0)
-
-        if self.k0 is None:
-            k0 = n_features
-        elif self.k0 > n_features:
-            k0 = n_features
-        else:
-            k0 = self.k0
+            mask = np.where(X == self.missing_value, 0, 1)
 
         # initialize dictionary
         dict_init = None
-        if self.components_ is not None:
-            if self.components_.shape == (n_components, n_features):
-                # Warm Start
-                dict_init = self.components_
+        if self.components_ is not None and self.components_.shape == (n_components, n_features):
+            # Warm Start
+            dict_init = self.components_
 
         code, self.components_, self.error_, self.n_iter_ = _ksvd(
-            X, n_components, k0,
+            X, n_components, self.transform_n_nonzero_coefs,
             max_iter=self.max_iter, tol=self.tol,
             dict_init=dict_init, mask=mask, n_jobs=self.n_jobs, method=self.method)
 
         return self
+
+    def transform(self, X):
+        """Encode the data as a sparse combination of the dictionary atoms.
+        Coding method is determined by the object parameter
+        `transform_algorithm`.
+        Parameters
+        ----------
+        X : array of shape (n_samples, n_features)
+            Test data to be transformed, must have the same number of
+            features as the data used to train the model.
+        Returns
+        -------
+        code : array, shape (n_samples, n_components)
+            Transformed data
+        """
+        if self.missing_value is not None:
+            check_is_fitted(self, 'components_')
+
+            X = check_array(X)
+
+            mask = np.where(X == self.missing_value, 0, 1)
+
+            code = sparse_encode_with_mask(
+                X, self.components_, mask, algorithm=self.transform_algorithm,
+                n_nonzero_coefs=self.transform_n_nonzero_coefs,
+                alpha=self.transform_alpha, n_jobs=self.n_jobs)
+
+            if self.split_sign:
+                # feature vector is split into a positive and negative side
+                n_samples, n_features = code.shape
+                split_code = np.empty((n_samples, 2 * n_features))
+                split_code[:, :n_features] = np.maximum(code, 0)
+                split_code[:, n_features:] = -np.minimum(code, 0)
+                code = split_code
+            return code
+
+        else:
+            return super().transform(X)
