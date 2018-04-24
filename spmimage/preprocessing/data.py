@@ -8,9 +8,9 @@ from sklearn.utils import check_array
 
 logger = getLogger(__name__)
 
+
 class WhiteningScaler(BaseEstimator, TransformerMixin):
-    def __init__(self, copy=True, eps=1e-9, thresholding=None,
-                unbiased=True, apply_zca=False):
+    def __init__(self, copy=True, eps=1e-9, thresholding=None, unbiased=True, apply_zca=False):
         self.copy = copy
         self.eps = eps
         self.thresholding = thresholding
@@ -26,8 +26,7 @@ class WhiteningScaler(BaseEstimator, TransformerMixin):
 WhiteningScaler does not support sparse input. See TruncatedSVD for a possible alternative.
 """)
 
-        X = check_array(X, dtype=[np.float64, np.float32],
-                        ensure_2d=True, copy=self.copy)
+        X = check_array(X, dtype=[np.float64, np.float32], ensure_2d=True, copy=self.copy)
 
         n_samples = X.shape[0]
 
@@ -42,7 +41,7 @@ WhiteningScaler does not support sparse input. See TruncatedSVD for a possible a
             _, s, V = np.linalg.svd(X / np.sqrt(n_samples), full_matrices=False)
 
         if self.eps <= 0 and (self.thresholding == 'normalize'
-                                or self.thresholding == 'drop_minute'):
+                              or self.thresholding == 'drop_minute'):
             raise ValueError("""
 Threshold eps must be positive: eps={0}.
 """.format(self.eps))
