@@ -17,88 +17,53 @@ class WhiteningScaler(BaseEstimator, TransformerMixin):
         self.unbiased = unbiased
         self.apply_zca = apply_zca
 
-    def _reset(self):
-        pass
-
     def _fit(self, X):
         if sparse.issparse(X):
             raise ValueError("""
 WhiteningScaler does not support sparse input. See TruncatedSVD for a possible alternative.
 """)
 
+        if self.eps <= 0 and self.thresholding in ['normalize', 'drop_minute']:
+            raise ValueError('Threshold eps must be positive: eps={0}.'.format(self.eps))
+
         X = check_array(X, dtype=[np.float64, np.float32], ensure_2d=True, copy=self.copy)
 
-        n_samples = X.shape[0]
-
         # Center data
-        self.mean_ = np.mean(X, axis=0)
-        X -= self.mean_
+        mean = np.mean(X, axis=0)
+        X -= mean
 
         # SVD
-        if self.unbiased:
-            _, s, V = np.linalg.svd(X / np.sqrt(n_samples - 1), full_matrices=False)
-        else:
-            _, s, V = np.linalg.svd(X / np.sqrt(n_samples), full_matrices=False)
-
-        if self.eps <= 0 and (self.thresholding == 'normalize'
-                              or self.thresholding == 'drop_minute'):
-            raise ValueError("""
-Threshold eps must be positive: eps={0}.
-""".format(self.eps))
+        n_samples = X.shape[0] - 1 if self.unbiased else X.shape[0]
+        _, s, V = np.linalg.svd(X / np.sqrt(n_samples), full_matrices=False)
 
         if self.thresholding is None:
             if np.any(np.isclose(s, np.zeros(s.shape), atol=1e-10)):
                 raise ValueError("""
-Eigenvalues of X' are degenerated: X'=X-np.mean(X,axis=0), \
-try normalize=True or drop_minute=True.
-""")
+    Eigenvalues of X' are degenerated: X'=X-np.mean(X,axis=0), \
+    try normalize=True or drop_minute=True.
+    """)
         elif self.thresholding == 'normalize':
             s += self.eps
         elif self.thresholding == 'drop_minute':
             s = s[s > self.eps]
             V = V[:s.shape[0]]
         else:
-            raise ValueError("""
-No such parameter: thresholding={0}.
-""".format(self.thresholding))
+            raise ValueError('No such parameter: thresholding={0}.'.format(self.thresholding))
 
-        n_components = s.shape[0]
-        S_inv = np.diag(np.ones(s.shape[0]) / s)
-
-        # Decorrelation & Whitening
-        X = X.dot(V.T.dot(S_inv))
-
-        # ZCA(Zero-phase Component Analysis) Whitening
-        if self.apply_zca:
-            X = X.dot(V)
-
-        return (X, s, V, n_components)
+        return mean, s, V
 
     def fit(self, X):
-        X_transformed, s, V, n_components = self._fit(X)
-
-        self.components_ = X_transformed
-        self.var_ = s
-        self.unitary_ = V
-        self.n_components = n_components
-
+        self.mean_, self.var_, self.unitary_ = self._fit(X)
         return self
 
     def transform(self, X):
+        # Decorrelation & Whitening
         S_inv = np.diag(np.ones(self.var_.shape[0]) / self.var_)
         X_transformed = (X - self.mean_).dot(self.unitary_.T.dot(S_inv))
+
+        # ZCA(Zero-phase Component Analysis) Whitening
         if self.apply_zca:
             return X_transformed.dot(self.unitary_)
-        return X_transformed
-
-    def fit_transform(self, X):
-        X_transformed, s, V, n_components = self._fit(X)
-
-        self.components_ = X_transformed
-        self.var_ = s
-        self.unitary_ = V
-        self.n_components = n_components
-
         return X_transformed
 
     def inverse_transform(self, X):
