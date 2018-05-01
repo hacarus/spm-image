@@ -40,7 +40,7 @@ WhiteningScaler does not support sparse input. See TruncatedSVD for a possible a
             if np.any(np.isclose(s, np.zeros(s.shape), atol=1e-10)):
                 raise ValueError("""
     Eigenvalues of X' are degenerated: X'=X-np.mean(X,axis=0), \
-    try normalize=True or drop_minute=True.
+    try thresholding='normalize' or thresholding='drop_minute'.
     """)
         elif self.thresholding == 'normalize':
             s += self.eps
