@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from spmimage.linear_model import LassoADMM
 from numpy.testing import assert_array_almost_equal
-from numpy.testing import assert_almost_equal
+
 
 def build_dataset(n_samples=50, n_features=200, n_informative_features=10,
                   n_targets=1):
@@ -50,7 +50,7 @@ class TestLassoADMM(unittest.TestCase):
         #   This problem will be fixed in future.
 
         X = np.array([[-1.], [0.], [1.]])
-        Y = [-1, 0, 1]       # just a straight line
+        Y = [-1, 0, 1]  # just a straight line
         T = [[2.], [3.], [4.]]  # test sample
 
         clf = LassoADMM(alpha=1e-8)
