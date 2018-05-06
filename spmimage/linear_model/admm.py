@@ -128,7 +128,7 @@ With alpha=0, this algorithm does not converge well. You are advised to use the 
         return self
 
     @abstractmethod
-    def generate_transform_matrix(self, n_features):
+    def generate_transform_matrix(self, n_features: int) -> np.ndarray:
         """
         :return:
         """
@@ -147,5 +147,26 @@ class LassoADMM(GeneralizedLasso):
                          normalize=normalize, copy_X=copy_X, max_iter=max_iter,
                          tol=tol)
 
-    def generate_transform_matrix(self, n_features):
+    def generate_transform_matrix(self, n_features: int) -> np.ndarray:
         return np.eye(n_features)
+
+
+class FusedLassoADMM(GeneralizedLasso):
+    """Fused Lasso minimises the following objective function.
+
+1/(2 * n_samples) * ||y - Xw||^2_2 + \lambda_1 \sum_{j=1}^p |w_j| + \lambda_2 \sum_{j=2}^p |w_j - w_{j-1}|
+    """
+
+    def __init__(self, alpha=1.0, sparse_coef=1.0, fused_coef=1.0, rho=1.0, fit_intercept=True,
+                 normalize=False, copy_X=True, max_iter=1000,
+                 tol=1e-4):
+        super().__init__(alpha=alpha, rho=rho, fit_intercept=fit_intercept,
+                         normalize=normalize, copy_X=copy_X, max_iter=max_iter,
+                         tol=tol)
+        self.sparse_coef = sparse_coef
+        self.fused_coef = fused_coef
+
+    def generate_transform_matrix(self, n_features: int) -> np.ndarray:
+        fused = np.eye(n_features) - np.eye(n_features, k=-1)
+        fused[0, 0] = 0
+        return self.sparse_coef * np.eye(n_features) + self.fused_coef * fused
