@@ -120,12 +120,11 @@ class TestLassoADMM(unittest.TestCase):
         X, y, X_test, y_test = build_dataset()
         max_iter = 1000
 
-        clf = LassoADMM(alpha=0.05, max_iter=max_iter).fit(X, y)
+        clf = LassoADMM(alpha=0.05, max_iter=max_iter, tol=1e-8).fit(X, y)
         self.assertGreater(clf.score(X_test, y_test), 0.99)
-        self.assertLess(clf.n_iter_, 100)
+        self.assertLess(clf.n_iter_, 150)
 
-        clf = LassoADMM(alpha=0.05, fit_intercept=False,
-                        max_iter=max_iter).fit(X, y)
+        clf = LassoADMM(alpha=0.05, fit_intercept=False, max_iter=max_iter).fit(X, y)
         self.assertGreater(clf.score(X_test, y_test), 0.99)
 
         # normalize doesn't seem to work well

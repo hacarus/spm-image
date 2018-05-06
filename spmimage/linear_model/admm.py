@@ -13,39 +13,56 @@ def _soft_threshold(X: np.ndarray, thresh: float) -> np.ndarray:
     return np.where(np.abs(X) <= thresh, 0, X - thresh * np.sign(X))
 
 
-def _cost_function(X, y, w, alpha):
+def _cost_function(X, y, w, z, alpha):
     n_samples = X.shape[0]
-    return np.linalg.norm(y - X.dot(w)) / n_samples + alpha * np.sum(np.abs(w))
+    return np.linalg.norm(y - X.dot(w)) / n_samples + alpha * np.sum(np.abs(z))
 
 
-def _admm(X: np.ndarray, y: np.ndarray, alpha: float, rho: float, tol: float, max_iter: int):
+def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float, tol: float, max_iter: int):
+    """Alternate Direction Multiplier Method(ADMM) for Generalized Lasso.
+
+    Minimizes the objective function::
+
+            1 / (2 * n_samples) * ||y - Xw||^2_2 + alpha * ||z||_1
+
+    where::
+
+            Dw = z
+
+    To solve this problem, ADMM uses augmented Lagrangian
+
+            1 / (2 * n_samples) * ||y - Xw||^2_2 + alpha * ||z||_1
+            + h^T (Dw - z) + rho / 2 * ||Dw - z||^2_2
+
+    where h is Lagrange multiplier.
+    """
     n_samples, n_features = X.shape
     n_targets = y.shape[1]
 
     # Initialize ADMM parameters
     w_t = X.T.dot(y) / n_samples
-    z_t = w_t.copy()
+    z_t = D.dot(w_t.copy())
     h_t = np.zeros(w_t.shape)
 
     # Calculate inverse matrix
-    inv_matrix = np.linalg.inv(X.T.dot(X) / n_samples + rho * np.eye(n_features))
+    inv_matrix = np.linalg.inv(X.T.dot(X) / n_samples + rho * D.T.dot(D))
     threshold = alpha / rho
 
     n_iter_ = []
     # Update ADMM parameters by columns
     for k in range(n_targets):
+        # initial cost
+        cost = _cost_function(X, y[:, k], w_t[:, k], z_t[:, k], alpha)
         for t in range(max_iter):
-            # current cost
-            pre_cost = _cost_function(X, y[:, k], w_t[:, k], alpha)
-
             # Update
-            w_t[:, k] = inv_matrix.dot(X.T.dot(y[:, k]) / n_samples + (rho * z_t[:, k]) - h_t[:, k])
-            z_t[:, k] = _soft_threshold(w_t[:, k] + (h_t[:, k] / rho), threshold)
-            h_t[:, k] += rho * (w_t[:, k] - z_t[:, k])
+            w_t[:, k] = inv_matrix.dot(X.T.dot(y[:, k]) / n_samples + rho * D.T.dot(z_t[:, k] - h_t[:, k] / rho))
+            z_t[:, k] = _soft_threshold(D.dot(w_t[:, k]) + h_t[:, k] / rho, threshold)
+            h_t[:, k] += rho * (D.dot(w_t[:, k]) - z_t[:, k])
 
             # after cost
-            post_cost = _cost_function(X, y[:, k], w_t[:, k], alpha)
-            gap = np.abs(pre_cost - post_cost)
+            pre_cost = cost
+            cost = _cost_function(X, y[:, k], w_t[:, k], z_t[:, k], alpha)
+            gap = np.abs(cost - pre_cost)
             if gap < tol:
                 break
         n_iter_.append(t)
@@ -94,7 +111,10 @@ With alpha=0, this algorithm does not converge well. You are advised to use the 
         if y.ndim == 1:
             y = y[:, np.newaxis]
 
-        self.coef_, self.n_iter_ = _admm(X, y, self.alpha, self.rho, self.tol, self.max_iter)
+        n_features = X.shape[1]
+        D = np.eye(n_features)
+
+        self.coef_, self.n_iter_ = _admm(X, y, D, self.alpha, self.rho, self.tol, self.max_iter)
         if y.shape[1] == 1:
             self.n_iter_ = self.n_iter_[0]
 
