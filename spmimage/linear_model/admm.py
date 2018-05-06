@@ -1,4 +1,5 @@
 from logging import getLogger
+from abc import abstractmethod
 
 import numpy as np
 
@@ -34,7 +35,7 @@ def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float,
             1 / (2 * n_samples) * ||y - Xw||^2_2 + alpha * ||z||_1
             + h^T (Dw - z) + rho / 2 * ||Dw - z||^2_2
 
-    where h is Lagrange multiplier.
+    where h is Lagrange multiplier and rho is tuning parameter.
     """
     n_samples, n_features = X.shape
     n_targets = y.shape[1]
@@ -70,12 +71,8 @@ def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float,
     return np.squeeze(z_t), n_iter_
 
 
-class LassoADMM(LinearModel, RegressorMixin):
-    """Linear Model trained with L1 prior as regularizer (aka the Lasso)
-    The optimization objective for Lasso is::
-        (1 / (2 * n_samples)) * ||y - Xw||^2_2 + alpha * ||w||_1
-    Technically the Lasso model is optimizing the same objective function as
-    the Elastic Net with ``l1_ratio=1.0`` (no L2 penalty).
+class GeneralizedLasso(LinearModel, RegressorMixin):
+    """Alternate Direction Multiplier Method(ADMM) for Generalized Lasso.
     """
 
     def __init__(self, alpha=1.0, rho=1.0, fit_intercept=True,
@@ -88,7 +85,6 @@ class LassoADMM(LinearModel, RegressorMixin):
         self.copy_X = copy_X
         self.max_iter = max_iter
         self.tol = tol
-        self.coef_ = None
 
     def fit(self, X, y, check_input=False):
         if self.alpha == 0:
@@ -112,9 +108,15 @@ With alpha=0, this algorithm does not converge well. You are advised to use the 
             y = y[:, np.newaxis]
 
         n_features = X.shape[1]
-        D = np.eye(n_features)
+        D = self.generate_transform_matrix(n_features)
+        sparse_coef, self.n_iter_ = _admm(X, y, D, self.alpha, self.rho, self.tol, self.max_iter)
 
-        self.coef_, self.n_iter_ = _admm(X, y, D, self.alpha, self.rho, self.tol, self.max_iter)
+        if np.linalg.matrix_rank(D) < n_features:
+            self.coef_ = np.linalg.pinv(D).dot(sparse_coef)
+        else:
+            self.coef_ = np.linalg.inv(D).dot(sparse_coef)
+        self.coef_ = np.squeeze(self.coef_)
+
         if y.shape[1] == 1:
             self.n_iter_ = self.n_iter_[0]
 
@@ -124,3 +126,26 @@ With alpha=0, this algorithm does not converge well. You are advised to use the 
         self.coef_ = np.asarray(self.coef_, dtype=X.dtype)
 
         return self
+
+    @abstractmethod
+    def generate_transform_matrix(self, n_features):
+        """
+        :return:
+        """
+
+
+class LassoADMM(GeneralizedLasso):
+    """Linear Model trained with L1 prior as regularizer (aka the Lasso)
+    The optimization objective for Lasso is::
+        (1 / (2 * n_samples)) * ||y - Xw||^2_2 + alpha * ||w||_1
+    """
+
+    def __init__(self, alpha=1.0, rho=1.0, fit_intercept=True,
+                 normalize=False, copy_X=True, max_iter=1000,
+                 tol=1e-4):
+        super().__init__(alpha=alpha, rho=rho, fit_intercept=fit_intercept,
+                         normalize=normalize, copy_X=copy_X, max_iter=max_iter,
+                         tol=tol)
+
+    def generate_transform_matrix(self, n_features):
+        return np.eye(n_features)
