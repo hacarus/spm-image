@@ -1,9 +1,9 @@
 import unittest
 
 import numpy as np
-from spmimage.linear_model import LassoADMM
+from spmimage.linear_model import LassoADMM, FusedLassoADMM
 from numpy.testing import assert_array_almost_equal
-from numpy.testing import assert_almost_equal
+
 
 def build_dataset(n_samples=50, n_features=200, n_informative_features=10,
                   n_targets=1):
@@ -50,7 +50,7 @@ class TestLassoADMM(unittest.TestCase):
         #   This problem will be fixed in future.
 
         X = np.array([[-1.], [0.], [1.]])
-        Y = [-1, 0, 1]       # just a straight line
+        Y = [-1, 0, 1]  # just a straight line
         T = [[2.], [3.], [4.]]  # test sample
 
         clf = LassoADMM(alpha=1e-8)
@@ -118,20 +118,92 @@ class TestLassoADMM(unittest.TestCase):
 
     def test_lasso_admm(self):
         X, y, X_test, y_test = build_dataset()
-        max_iter = 1000
 
-        clf = LassoADMM(alpha=0.05, max_iter=max_iter).fit(X, y)
+        clf = LassoADMM(alpha=0.05, tol=1e-8).fit(X, y)
         self.assertGreater(clf.score(X_test, y_test), 0.99)
-        self.assertLess(clf.n_iter_, 100)
+        self.assertLess(clf.n_iter_, 150)
 
-        clf = LassoADMM(alpha=0.05, fit_intercept=False,
-                        max_iter=max_iter).fit(X, y)
+        clf = LassoADMM(alpha=0.05, fit_intercept=False).fit(X, y)
         self.assertGreater(clf.score(X_test, y_test), 0.99)
 
         # normalize doesn't seem to work well
-        clf = LassoADMM(alpha=0.144, rho=0.1, normalize=True,
-                        max_iter=max_iter).fit(X, y)
+        clf = LassoADMM(alpha=0.144, rho=0.1, normalize=True).fit(X, y)
         self.assertGreater(clf.score(X_test, y_test), 0.60)
+
+
+class TestFusedLassoADMM(unittest.TestCase):
+
+    def setUp(self):
+        np.random.seed(0)
+
+    def test_fused_lasso_alpha(self):
+        X = np.random.normal(0.0, 1.0, (8, 4))
+        beta = np.array([4, 4, 0, 0])
+        y = X.dot(beta)
+        T = np.array([[5., 6., 7., 8.], [9., 10., 11., 12.], [13., 14., 15., 16.]])  # test sample
+
+        # small regularization parameter
+        clf = FusedLassoADMM(alpha=1e-8).fit(X, y)
+        actual = clf.predict(T)
+        assert_array_almost_equal(clf.coef_, [3.997, 3.998, -0.037, 0.005], decimal=3)
+        assert_array_almost_equal(actual, [43.774, 75.626, 107.478], decimal=3)
+        self.assertLess(clf.n_iter_, 150)
+
+        # default
+        clf = FusedLassoADMM(alpha=1).fit(X, y)
+        actual = clf.predict(T)
+        assert_array_almost_equal(clf.coef_, [3.197, 1.599, 0.799, 0.4], decimal=3)
+        assert_array_almost_equal(actual, [34.691, 58.673, 82.654], decimal=3)
+        self.assertLess(clf.n_iter_, 150)
+
+        # all coefs will be zero
+        clf = FusedLassoADMM(alpha=10).fit(X, y)
+        actual = clf.predict(T)
+        assert_array_almost_equal(clf.coef_, [0, 0, 0, 0], decimal=3)
+        assert_array_almost_equal(actual, [3.72582929, 3.72582929, 3.72582929], decimal=3)
+        self.assertLess(clf.n_iter_, 20)
+
+    def test_fused_lasso_coef(self):
+        X = np.random.normal(0.0, 1.0, (8, 4))
+        beta = np.array([4, 4, 0, 0])
+        y = X.dot(beta)
+        T = np.array([[5., 6., 7., 8.], [9., 10., 11., 12.], [13., 14., 15., 16.]])  # test sample
+
+        # small fused_coef
+        clf = FusedLassoADMM(alpha=1e-8, fused_coef=1e-4).fit(X, y)
+        actual = clf.predict(T)
+        assert_array_almost_equal(clf.coef_, [3.999e+00, 3.999e+00, -7.296e-03, 9.860e-04], decimal=3)
+        assert_array_almost_equal(actual, [43.95, 75.916, 107.883], decimal=3)
+        self.assertLess(clf.n_iter_, 100)
+
+        # large fused_coef
+        clf = FusedLassoADMM(alpha=1e-8, fused_coef=10).fit(X, y)
+        actual = clf.predict(T)
+        assert_array_almost_equal(clf.coef_, [3.916, 3.669, -0.107, 0.196], decimal=3)
+        assert_array_almost_equal(actual, [42.499, 73.198, 103.896], decimal=3)
+        self.assertLess(clf.n_iter_, clf.max_iter)
+
+        # small sparse_coef
+        clf = FusedLassoADMM(alpha=1e-8, sparse_coef=1e-4).fit(X, y)
+        actual = clf.predict(T)
+        assert_array_almost_equal(clf.coef_, [3.999e+00, 3.999e+00, -1.100e-02, 2.126e-03], decimal=3)
+        assert_array_almost_equal(actual, [43.931, 75.885, 107.839], decimal=3)
+        self.assertLess(clf.n_iter_, 100)
+
+        # large fused_coef
+        clf = FusedLassoADMM(alpha=1e-8, sparse_coef=10).fit(X, y)
+        actual = clf.predict(T)
+        assert_array_almost_equal(clf.coef_, [3.912, 3.826, -0.336, 0.124], decimal=3)
+        assert_array_almost_equal(actual, [41.367, 71.471, 101.575], decimal=3)
+        self.assertLess(clf.n_iter_, clf.max_iter)
+
+    def test_simple_lasso(self):
+        X, y, X_test, y_test = build_dataset()
+
+        # check if FusedLasso generates same result of LassoAdmm when fused_coef is zero
+        clf = FusedLassoADMM(alpha=0.05, sparse_coef=1, fused_coef=0, tol=1e-8).fit(X, y)
+        self.assertGreater(clf.score(X_test, y_test), 0.99)
+        self.assertLess(clf.n_iter_, 150)
 
 
 if __name__ == '__main__':

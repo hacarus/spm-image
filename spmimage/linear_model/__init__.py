@@ -1,3 +1,6 @@
-from .admm import LassoADMM
+from .admm import LassoADMM, FusedLassoADMM
 
-__all__ = ['LassoADMM']
+__all__ = [
+    'LassoADMM',
+    'FusedLassoADMM',
+]
