@@ -47,6 +47,8 @@ def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float,
 
     # Calculate inverse matrix
     inv_matrix = np.linalg.inv(X.T.dot(X) / n_samples + rho * D.T.dot(D))
+    inv_matrix_XTy = inv_matrix.dot(X.T).dot(y) / n_samples
+    inv_matrix_DT = inv_matrix.dot(rho * D.T)
     threshold = alpha / rho
 
     n_iter_ = []
@@ -56,9 +58,11 @@ def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float,
         cost = _cost_function(X, y[:, k], w_t[:, k], z_t[:, k], alpha)
         for t in range(max_iter):
             # Update
-            w_t[:, k] = inv_matrix.dot(X.T.dot(y[:, k]) / n_samples + rho * D.T.dot(z_t[:, k] - h_t[:, k] / rho))
-            z_t[:, k] = _soft_threshold(D.dot(w_t[:, k]) + h_t[:, k] / rho, threshold)
-            h_t[:, k] += rho * (D.dot(w_t[:, k]) - z_t[:, k])
+            w_t[:, k] = inv_matrix_XTy[:, k]\
+                + inv_matrix_DT.dot(z_t[:, k] - h_t[:, k] / rho)
+            Dw_t = D.dot(w_t[:, k])
+            z_t[:, k] = _soft_threshold(Dw_t + h_t[:, k] / rho, threshold)
+            h_t[:, k] += rho * (Dw_t - z_t[:, k])
 
             # after cost
             pre_cost = cost
@@ -67,8 +71,7 @@ def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float,
             if gap < tol:
                 break
         n_iter_.append(t)
-
-    return np.squeeze(z_t), n_iter_
+    return np.squeeze(w_t), n_iter_
 
 
 class GeneralizedLasso(LinearModel, RegressorMixin):
@@ -89,7 +92,7 @@ class GeneralizedLasso(LinearModel, RegressorMixin):
     def fit(self, X, y, check_input=False):
         if self.alpha == 0:
             logger.warning("""
-With alpha=0, this algorithm does not converge well. You are advised to use the LinearRegression estimator            
+With alpha=0, this algorithm does not converge well. You are advised to use the LinearRegression estimator
 """)
 
         if check_input:
@@ -109,12 +112,12 @@ With alpha=0, this algorithm does not converge well. You are advised to use the 
 
         n_features = X.shape[1]
         D = self.generate_transform_matrix(n_features)
-        sparse_coef, self.n_iter_ = _admm(X, y, D, self.alpha, self.rho, self.tol, self.max_iter)
+        self.coef_, self.n_iter_ = _admm(X, y, D, self.alpha, self.rho, self.tol, self.max_iter)
 
-        if np.linalg.matrix_rank(D) < n_features:
-            self.coef_ = np.linalg.pinv(D).dot(sparse_coef)
-        else:
-            self.coef_ = np.linalg.inv(D).dot(sparse_coef)
+        # if np.linalg.matrix_rank(D) < n_features:
+        # self.coef_ = np.linalg.pinv(D).dot(self.coef_)
+        # else:
+        #     self.coef_ = np.linalg.inv(D).dot(sparse_coef)
         self.coef_ = np.squeeze(self.coef_)
 
         if y.shape[1] == 1:
