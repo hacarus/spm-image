@@ -68,7 +68,7 @@ def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float,
                 break
         n_iter_.append(t)
 
-    return np.squeeze(z_t), n_iter_
+    return np.squeeze(w_t), n_iter_
 
 
 class GeneralizedLasso(LinearModel, RegressorMixin):
@@ -89,7 +89,7 @@ class GeneralizedLasso(LinearModel, RegressorMixin):
     def fit(self, X, y, check_input=False):
         if self.alpha == 0:
             logger.warning("""
-With alpha=0, this algorithm does not converge well. You are advised to use the LinearRegression estimator            
+With alpha=0, this algorithm does not converge well. You are advised to use the LinearRegression estimator
 """)
 
         if check_input:
@@ -111,11 +111,11 @@ With alpha=0, this algorithm does not converge well. You are advised to use the 
         D = self.generate_transform_matrix(n_features)
         sparse_coef, self.n_iter_ = _admm(X, y, D, self.alpha, self.rho, self.tol, self.max_iter)
 
-        if np.linalg.matrix_rank(D) < n_features:
-            self.coef_ = np.linalg.pinv(D).dot(sparse_coef)
-        else:
-            self.coef_ = np.linalg.inv(D).dot(sparse_coef)
-        self.coef_ = np.squeeze(self.coef_)
+        # if np.linalg.matrix_rank(D) < n_features:
+        #     self.coef_ = np.linalg.pinv(D).dot(sparse_coef)
+        # else:
+        #     self.coef_ = np.linalg.inv(D).dot(sparse_coef)
+        # self.coef_ = np.squeeze(self.coef_)
 
         if y.shape[1] == 1:
             self.n_iter_ = self.n_iter_[0]
