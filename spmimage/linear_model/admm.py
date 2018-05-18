@@ -47,7 +47,7 @@ def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float,
 
     # Calculate inverse matrix
     inv_matrix = np.linalg.inv(X.T.dot(X) / n_samples + rho * D.T.dot(D))
-    inv_matrix_XT = inv_matrix.dot(X.T) / n_samples
+    inv_matrix_XTy = inv_matrix.dot(X.T).dot(y) / n_samples
     inv_matrix_DT = inv_matrix.dot(rho * D.T)
     threshold = alpha / rho
 
@@ -58,7 +58,7 @@ def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float,
         cost = _cost_function(X, y[:, k], w_t[:, k], z_t[:, k], alpha)
         for t in range(max_iter):
             # Update
-            w_t[:, k] = inv_matrix_XT.dot(y[:, k])\
+            w_t[:, k] = inv_matrix_XTy[:, k]\
                 + inv_matrix_DT.dot(z_t[:, k] - h_t[:, k] / rho)
             Dw_t = D.dot(w_t[:, k])
             z_t[:, k] = _soft_threshold(Dw_t + h_t[:, k] / rho, threshold)
@@ -71,7 +71,6 @@ def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float,
             if gap < tol:
                 break
         n_iter_.append(t)
-    # w_t = _soft_threshold(w_t + h_t / rho, threshold)
     return np.squeeze(w_t), n_iter_
 
 
