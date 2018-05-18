@@ -109,13 +109,8 @@ With alpha=0, this algorithm does not converge well. You are advised to use the 
 
         n_features = X.shape[1]
         D = self.generate_transform_matrix(n_features)
-        sparse_coef, self.n_iter_ = _admm(X, y, D, self.alpha, self.rho, self.tol, self.max_iter)
+        self.coef_, self.n_iter_ = _admm(X, y, D, self.alpha, self.rho, self.tol, self.max_iter)
 
-        # if np.linalg.matrix_rank(D) < n_features:
-        #     self.coef_ = np.linalg.pinv(D).dot(sparse_coef)
-        # else:
-        #     self.coef_ = np.linalg.inv(D).dot(sparse_coef)
-        # self.coef_ = np.squeeze(self.coef_)
 
         if y.shape[1] == 1:
             self.n_iter_ = self.n_iter_[0]
