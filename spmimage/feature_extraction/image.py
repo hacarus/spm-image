@@ -51,7 +51,7 @@ def reconstruct_from_simple_patches_2d(patches: np.ndarray, image_size: Tuple[in
     """
     i_h, i_w = image_size[:2]
     p_h, p_w = patches.shape[1:3]
-    image = np.zeros(image_size)
+    image = np.zeros(image_size, dtype=patches.dtype)
 
     n_h = int(i_h / p_h)
     n_w = int(i_w / p_w)
