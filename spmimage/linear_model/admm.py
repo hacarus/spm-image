@@ -18,6 +18,19 @@ def _cost_function(X, y, w, z, alpha):
     n_samples = X.shape[0]
     return np.linalg.norm(y - X.dot(w)) / n_samples + alpha * np.sum(np.abs(z))
 
+def admm_path(X, y, alphas, rho=1.0, max_iter=1000, tol=1e-04):
+    coefs = []
+    n_iters = []
+    
+    for alpha in alphas:
+        clf = LassoADMM(alpha=alpha, rho=rho, fit_intercept=True, normalize=False, copy_X=True, max_iter=max_iter, tol=tol)
+        clf.fit(X, y)
+        coefs.append(clf.coef_)
+        n_iters.append(clf.n_iter_)
+
+    return alphas, coefs, n_iters
+
+
 
 def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float, tol: float, max_iter: int):
     """Alternate Direction Multiplier Method(ADMM) for Generalized Lasso.
