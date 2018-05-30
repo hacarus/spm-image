@@ -6,6 +6,7 @@ import numpy as np
 from sklearn.utils import check_array, check_X_y
 from sklearn.base import RegressorMixin
 from sklearn.linear_model.base import LinearModel
+from sklearn.linear_model.coordinate_descent import _alpha_grid
 
 logger = getLogger(__name__)
 
@@ -18,9 +19,16 @@ def _cost_function(X, y, w, z, alpha):
     n_samples = X.shape[0]
     return np.linalg.norm(y - X.dot(w)) / n_samples + alpha * np.sum(np.abs(z))
 
-def admm_path(X, y, alphas, rho=1.0, max_iter=1000, tol=1e-04):
+def admm_path(X, y, Xy=None, alphas=None, eps=1e-3, n_alphas=100, rho=1.0, max_iter=1000, tol=1e-04):
     coefs = []
     n_iters = []
+
+    if alphas is not None:
+        alphas = _alpha_grid(X, y, Xy=Xy, l1_ratio=1.0,
+                             fit_intercept=False, eps=eps, n_alphas=n_alphas,
+                             normalze=False, copy_X=False)
+    else:
+        alphas = np.sort(alphas)[::-1]
     
     for alpha in alphas:
         clf = LassoADMM(alpha=alpha, rho=rho, fit_intercept=True, normalize=False, copy_X=True, max_iter=max_iter, tol=tol)
