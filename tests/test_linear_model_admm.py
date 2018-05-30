@@ -4,7 +4,6 @@ import numpy as np
 from spmimage.linear_model import LassoADMM, FusedLassoADMM
 from numpy.testing import assert_array_almost_equal
 
-
 def build_dataset(n_samples=50, n_features=200, n_informative_features=10,
                   n_targets=1):
     """
@@ -208,5 +207,20 @@ class TestFusedLassoADMM(unittest.TestCase):
         self.assertLess(clf.n_iter_, 150)
 
 
+class TestAdmmPath(unittest.TestCase):
+    def setUp(self):
+        X, y, X_test, y_test = build_dataset()
+        self.X = X
+        self.y = y
+        self.X_test = X_test
+        self.y_test = y_test
+
+    def test_admm_path_correct_pair(self):
+        # check if input alphas are sorted
+        in_alphas = np.random.randn(100)
+        out_alphas, _, _ = admm_path(self.X, self.y, alphas=in_alphas)
+        self.assertEquals(in_alphas, out_alphas)
+        
+        
 if __name__ == '__main__':
     unittest.main()
