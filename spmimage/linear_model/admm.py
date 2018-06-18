@@ -19,24 +19,36 @@ def _cost_function(X, y, w, z, alpha):
     n_samples = X.shape[0]
     return np.linalg.norm(y - X.dot(w)) / n_samples + alpha * np.sum(np.abs(z))
 
-def admm_path(X, y, Xy=None, alphas=None, eps=1e-3, n_alphas=100, rho=1.0, max_iter=1000, tol=1e-04):
-    coefs = []
-    n_iters = []
+def admm_path(X, y, Xy=None, alphas=None, eps=1e-3, n_alphas=100, rho=1.0, max_iter=1000,tol=1e-04):
 
-    if alphas is not None:
+    n_samples, n_features = X.shape
+    multi_output = False
+    n_iters = []
+    
+    if y.ndim != 1:
+        multi_output = True
+        _, n_outputs = y.shape
+
+    if alphas is None:
         alphas = _alpha_grid(X, y, Xy=Xy, l1_ratio=1.0,
                              fit_intercept=False, eps=eps, n_alphas=n_alphas,
-                             normalze=False, copy_X=False)
+                             normalize=False, copy_X=False)
     else:
         alphas = np.sort(alphas)[::-1]
-    
-    for alpha in alphas:
+
+    if not multi_output:
+        coefs = np.zeros((n_features, n_alphas), dtype=X.dtype)
+    else:
+        coefs = np.zeros((n_features, n_outputs, n_alphas), dtype=X.dtype)
+
+        
+    for i, alpha in enumerate(alphas):
         clf = LassoADMM(alpha=alpha, rho=rho, fit_intercept=True, normalize=False, copy_X=True, max_iter=max_iter, tol=tol)
         clf.fit(X, y)
-        coefs.append(clf.coef_)
+        coefs[..., i] = clf.coef_
         n_iters.append(clf.n_iter_)
 
-    return alphas, coefs, n_iters
+    return alphas, coefs, np.array(n_iters)
 
 
 
