@@ -2,6 +2,7 @@ import unittest
 
 import numpy as np
 from spmimage.linear_model import LassoADMM, FusedLassoADMM
+from spmimage.linear_model.admm import admm_path
 from numpy.testing import assert_array_almost_equal
 
 def build_dataset(n_samples=50, n_features=200, n_informative_features=10,
@@ -215,12 +216,50 @@ class TestAdmmPath(unittest.TestCase):
         self.X_test = X_test
         self.y_test = y_test
 
-    def test_admm_path_correct_pair(self):
+    def test_sorted_alphas(self):
+        n_alphas = 100
+
         # check if input alphas are sorted
-        in_alphas = np.random.randn(100)
+        in_alphas = np.random.randn(n_alphas)
         out_alphas, _, _ = admm_path(self.X, self.y, alphas=in_alphas)
-        self.assertEquals(in_alphas, out_alphas)
+        in_alphas = np.sort(in_alphas)[::-1]
         
+        assert_array_almost_equal(out_alphas, in_alphas)
+
+    def test_admm_path_coefs(self):
+        # check if we can get correct coefs
+
+        from sklearn import datasets
+        diabetes = datasets.load_diabetes()
+        X = diabetes.data
+        y = diabetes.target
+
+        X /= X.std(axis=0)
+        eps = 5e-3
+        n_alphas = 100
+        rho = 1.0
+        max_iter = 1000
+        tol = 1e-04
+        
+        alphas, coefs_actual, _ = admm_path(X=X, y=y, Xy=None, alphas=None, eps=eps, n_alphas=n_alphas, rho=rho, max_iter=max_iter, tol=tol)
+
+        _, n_features = X.shape
+        multi_output = False
+        if y.ndim != 1:
+            multi_output = True
+            _, n_outputs = y.shape
+
+        if not multi_output:
+            coefs_desired = np.zeros((n_features, n_alphas), dtype=X.dtype)
+        else:
+            coefs_desired = np.zeros((n_features, n_outputs, n_alphas), dtype=X.dtype)
+
+        for i, alpha in enumerate(alphas):
+            clf = LassoADMM(alpha=alpha, rho=rho, max_iter=max_iter, tol=tol)
+            clf.fit(X, y)
+            coefs_desired[..., i] = clf.coef_
+
+        assert_array_almost_equal(coefs_actual, coefs_desired, decimal=3)
         
 if __name__ == '__main__':
     unittest.main()
