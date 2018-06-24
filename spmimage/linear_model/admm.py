@@ -21,7 +21,7 @@ def _cost_function(X, y, w, z, alpha):
 
 def admm_path(X, y, Xy=None, alphas=None, eps=1e-3, n_alphas=100, rho=1.0, max_iter=1000,tol=1e-04):
 
-    n_samples, n_features = X.shape
+    _, n_features = X.shape
     multi_output = False
     n_iters = []
     
