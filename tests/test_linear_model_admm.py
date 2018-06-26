@@ -2,6 +2,7 @@ import unittest
 
 import numpy as np
 from spmimage.linear_model import LassoADMM, FusedLassoADMM
+from spmimage.linear_model.admm import admm_path
 from numpy.testing import assert_array_almost_equal
 
 
@@ -132,7 +133,6 @@ class TestLassoADMM(unittest.TestCase):
 
 
 class TestFusedLassoADMM(unittest.TestCase):
-
     def setUp(self):
         np.random.seed(0)
 
@@ -206,6 +206,26 @@ class TestFusedLassoADMM(unittest.TestCase):
         clf = FusedLassoADMM(alpha=0.05, sparse_coef=1, fused_coef=0, tol=1e-8).fit(X, y)
         self.assertGreater(clf.score(X_test, y_test), 0.99)
         self.assertLess(clf.n_iter_, 150)
+
+
+class TestAdmmPath(unittest.TestCase):
+    def test_admm_path_alphas(self):
+        # check if input alphas are sorted
+        X, y, X_test, y_test = build_dataset()
+
+        alphas = [0.1, 0.3, 0.5, -0.1, -0.2]
+        actual_alphas, _, _ = admm_path(X, y, alphas=alphas)
+        assert_array_almost_equal(actual_alphas, [0.5, 0.3, 0.1, -0.1, -0.2])
+
+    def test_admm_path_coefs(self):
+        # check if we can get correct coefs
+
+        X = np.array([[-1.], [0.], [1.]])
+        y = np.array([-1, 0, 1])  # just a straight line
+
+        _, coefs_actual, _ = admm_path(X, y, alphas=[1e-8, 0.1, 0.5, 1], rho=1.0)
+        assert_array_almost_equal(coefs_actual[0], [-1.31072000e-04, 2.53888000e-01, 8.49673483e-01, 9.99738771e-01],
+                                  decimal=3)
 
 
 if __name__ == '__main__':
