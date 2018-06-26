@@ -19,37 +19,34 @@ def _cost_function(X, y, w, z, alpha):
     n_samples = X.shape[0]
     return np.linalg.norm(y - X.dot(w)) / n_samples + alpha * np.sum(np.abs(z))
 
-def admm_path(X, y, Xy=None, alphas=None, eps=1e-3, n_alphas=100, rho=1.0, max_iter=1000,tol=1e-04):
 
+def admm_path(X, y, Xy=None, alphas=None, eps=1e-3, n_alphas=100, rho=1.0, max_iter=1000, tol=1e-04):
     _, n_features = X.shape
     multi_output = False
     n_iters = []
-    
+
     if y.ndim != 1:
         multi_output = True
         _, n_outputs = y.shape
 
     if alphas is None:
-        alphas = _alpha_grid(X, y, Xy=Xy, l1_ratio=1.0,
-                             fit_intercept=False, eps=eps, n_alphas=n_alphas,
-                             normalize=False, copy_X=False)
+        alphas = _alpha_grid(X, y, Xy=Xy, l1_ratio=1.0, eps=eps, n_alphas=n_alphas)
     else:
         alphas = np.sort(alphas)[::-1]
+        n_alphas = len(alphas)
 
     if not multi_output:
         coefs = np.zeros((n_features, n_alphas), dtype=X.dtype)
     else:
         coefs = np.zeros((n_features, n_outputs, n_alphas), dtype=X.dtype)
 
-        
     for i, alpha in enumerate(alphas):
-        clf = LassoADMM(alpha=alpha, rho=rho, fit_intercept=True, normalize=False, copy_X=True, max_iter=max_iter, tol=tol)
+        clf = LassoADMM(alpha=alpha, rho=rho, max_iter=max_iter, tol=tol)
         clf.fit(X, y)
         coefs[..., i] = clf.coef_
         n_iters.append(clf.n_iter_)
 
-    return alphas, coefs, np.array(n_iters)
-
+    return alphas, coefs, n_iters
 
 
 def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float, tol: float, max_iter: int):
@@ -91,8 +88,8 @@ def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float,
         cost = _cost_function(X, y[:, k], w_t[:, k], z_t[:, k], alpha)
         for t in range(max_iter):
             # Update
-            w_t[:, k] = inv_matrix_XTy[:, k]\
-                + inv_matrix_DT.dot(z_t[:, k] - h_t[:, k] / rho)
+            w_t[:, k] = inv_matrix_XTy[:, k] \
+                        + inv_matrix_DT.dot(z_t[:, k] - h_t[:, k] / rho)
             Dw_t = D.dot(w_t[:, k])
             z_t[:, k] = _soft_threshold(Dw_t + h_t[:, k] / rho, threshold)
             h_t[:, k] += rho * (Dw_t - z_t[:, k])
@@ -146,12 +143,6 @@ With alpha=0, this algorithm does not converge well. You are advised to use the 
         n_features = X.shape[1]
         D = self.generate_transform_matrix(n_features)
         self.coef_, self.n_iter_ = _admm(X, y, D, self.alpha, self.rho, self.tol, self.max_iter)
-
-        # if np.linalg.matrix_rank(D) < n_features:
-        # self.coef_ = np.linalg.pinv(D).dot(self.coef_)
-        # else:
-        #     self.coef_ = np.linalg.inv(D).dot(sparse_coef)
-        self.coef_ = np.squeeze(self.coef_)
 
         if y.shape[1] == 1:
             self.n_iter_ = self.n_iter_[0]

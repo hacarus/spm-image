@@ -5,6 +5,7 @@ from spmimage.linear_model import LassoADMM, FusedLassoADMM
 from spmimage.linear_model.admm import admm_path
 from numpy.testing import assert_array_almost_equal
 
+
 def build_dataset(n_samples=50, n_features=200, n_informative_features=10,
                   n_targets=1):
     """
@@ -132,7 +133,6 @@ class TestLassoADMM(unittest.TestCase):
 
 
 class TestFusedLassoADMM(unittest.TestCase):
-
     def setUp(self):
         np.random.seed(0)
 
@@ -209,57 +209,24 @@ class TestFusedLassoADMM(unittest.TestCase):
 
 
 class TestAdmmPath(unittest.TestCase):
-    def setUp(self):
-        X, y, X_test, y_test = build_dataset()
-        self.X = X
-        self.y = y
-        self.X_test = X_test
-        self.y_test = y_test
-
-    def test_sorted_alphas(self):
-        n_alphas = 100
-
+    def test_admm_path_alphas(self):
         # check if input alphas are sorted
-        in_alphas = np.random.randn(n_alphas)
-        out_alphas, _, _ = admm_path(self.X, self.y, alphas=in_alphas)
-        in_alphas = np.sort(in_alphas)[::-1]
-        
-        assert_array_almost_equal(out_alphas, in_alphas)
+        X, y, X_test, y_test = build_dataset()
+
+        alphas = [0.1, 0.3, 0.5, -0.1, -0.2]
+        actual_alphas, _, _ = admm_path(X, y, alphas=alphas)
+        assert_array_almost_equal(actual_alphas, [0.5, 0.3, 0.1, -0.1, -0.2])
 
     def test_admm_path_coefs(self):
         # check if we can get correct coefs
 
-        from sklearn import datasets
-        diabetes = datasets.load_diabetes()
-        X = diabetes.data
-        y = diabetes.target
+        X = np.array([[-1.], [0.], [1.]])
+        y = np.array([-1, 0, 1])  # just a straight line
 
-        X /= X.std(axis=0)
-        eps = 5e-3
-        n_alphas = 100
-        rho = 1.0
-        max_iter = 1000
-        tol = 1e-04
-        
-        alphas, coefs_actual, _ = admm_path(X=X, y=y, Xy=None, alphas=None, eps=eps, n_alphas=n_alphas, rho=rho, max_iter=max_iter, tol=tol)
+        _, coefs_actual, _ = admm_path(X, y, alphas=[1e-8, 0.1, 0.5, 1], rho=1.0)
+        assert_array_almost_equal(coefs_actual[0], [-1.31072000e-04, 2.53888000e-01, 8.49673483e-01, 9.99738771e-01],
+                                  decimal=3)
 
-        _, n_features = X.shape
-        multi_output = False
-        if y.ndim != 1:
-            multi_output = True
-            _, n_outputs = y.shape
 
-        if not multi_output:
-            coefs_desired = np.zeros((n_features, n_alphas), dtype=X.dtype)
-        else:
-            coefs_desired = np.zeros((n_features, n_outputs, n_alphas), dtype=X.dtype)
-
-        for i, alpha in enumerate(alphas):
-            clf = LassoADMM(alpha=alpha, rho=rho, max_iter=max_iter, tol=tol)
-            clf.fit(X, y)
-            coefs_desired[..., i] = clf.coef_
-
-        assert_array_almost_equal(coefs_actual, coefs_desired, decimal=3)
-        
 if __name__ == '__main__':
     unittest.main()
