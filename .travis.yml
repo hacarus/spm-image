@@ -3,7 +3,7 @@ python:
   - '3.5'
   - '3.6'
 install: travis_wait pip install -r requirements.txt
-script: python -m unittest discover
+script: travis_wait python -m unittest discover
 notifications:
   slack:
     on_success: change
