@@ -8,6 +8,7 @@ from sklearn.base import RegressorMixin
 from sklearn.linear_model.base import LinearModel
 from sklearn.linear_model.coordinate_descent import _alpha_grid
 from sklearn.externals.joblib import Parallel, delayed
+from sklearn.model_selection import check_cv
 
 logger = getLogger(__name__)
 
@@ -216,5 +217,139 @@ class FusedLassoADMM(GeneralizedLasso):
 
 class LassoADMMCV(GeneralizedLasso, RegressorMixin):
 
-    def __init__():
+
+    path = staticmethod(admm_path)
+    
+    def __init__(self, alphas=None, n_alphas=100, rho=1.0, fit_intercept=True,
+                 normalize=False, copy_X=True, max_iter=1000,
+                 tol=1e-4, cv=None, n_jobs=1):       
+        self.alphas = alphas
+        self.n_alphas = n_alphas
+        self.rho = rho
+        self.fit_intercept = fit_intercept
+        self.normalize = normalize
+        self.copy_X = copy_X
+        self.max_iter = max_iter
+        self.tol = tol
+        self.cv = cv
+        self.n_jobs = n_jobs
+
+    def fit(self, X, y):
+        y = check_array(y, copy=False, dtype=[np.float64, np.float32],
+                        ensure_2d=False)
+        if y.shape[0] == 0:
+            raise ValueError("y has 0 samples: %r" % y)
         
+        copy_X = self.copy_X and self.fit_intercept
+
+        if isinstance(X, np.ndarray) or sparse.isspmatrix(X):
+            # Keep a reference to X
+            reference_to_old_X = X
+            # Let us not impose fortran ordering so far: it is
+            # not useful for the cross-validation loop and will be done
+            # by the model fitting itself
+            X = check_array(X, 'csc', copy=False)
+            if sparse.isspmatrix(X):
+                if (hasattr(reference_to_old_X, "data") and
+                   not np.may_share_memory(reference_to_old_X.data, X.data)):
+                    # X is a sparse matrix and has been copied
+                    copy_X = False
+            elif not np.may_share_memory(reference_to_old_X, X):
+                # X has been copied
+                copy_X = False
+            del reference_to_old_X
+        else:
+            X = check_array(X, 'csc', dtype=[np.float64, np.float32],
+                            order='F', copy=copy_X)
+            copy_X = False
+
+        if X.shape[0] != y.shape[0]:
+            raise ValueError("X and y have inconsistent dimensions (%d != %d)"
+                             % (X.shape[0], y.shape[0]))
+
+        
+        # All LinearModelCV parameters except 'cv' are acceptable
+        path_params = self.get_params()
+        
+        path_params.pop('cv', None)
+
+        alphas = self.alphas
+
+        if alphas is None:
+        alphas = _alpha_grid(X, y, Xy=Xy, l1_ratio=1.0,
+                             fit_intercept=False, eps=eps, n_alphas=n_alphas,
+                             normalize=False, copy_X=False)
+        else:
+            alphas = np.sort(alphas)[::-1]
+            
+        # We want n_alphas to be the number of alphas used for each l1_ratio.
+        n_alphas = len(alphas)
+        path_params.update({'n_alphas': n_alphas})
+
+        path_params['copy_X'] = copy_X
+        # We are not computing in parallel, we can modify X
+        # inplace in the folds
+        if not (self.n_jobs == 1 or self.n_jobs is None):
+            path_params['copy_X'] = False
+            
+        # init cross-validation generator
+        cv = check_cv(self.cv)
+
+        ===================================================================
+        need to rewrite below code
+        ===================================================================
+
+        # Compute path for all folds and compute MSE to get the best alpha
+        folds = list(cv.split(X, y))
+        best_mse = np.inf
+
+        # We do a double for loop folded in one, in order to be able to
+        # iterate in parallel on l1_ratio and folds
+        jobs = (delayed(_path_residuals)(X, y, train, test, self.path,
+                                         path_params, alphas=this_alphas,
+                                         l1_ratio=this_l1_ratio, X_order='F',
+                                         dtype=X.dtype.type)
+                for this_l1_ratio, this_alphas in zip(l1_ratios, alphas)
+                for train, test in folds)
+        mse_paths = Parallel(n_jobs=self.n_jobs, verbose=self.verbose,
+                             backend="threading")(jobs)
+        mse_paths = np.reshape(mse_paths, (n_l1_ratio, len(folds), -1))
+        mean_mse = np.mean(mse_paths, axis=1)
+        self.mse_path_ = np.squeeze(np.rollaxis(mse_paths, 2, 1))
+        for l1_ratio, l1_alphas, mse_alphas in zip(l1_ratios, alphas,
+                                                   mean_mse):
+            i_best_alpha = np.argmin(mse_alphas)
+            this_best_mse = mse_alphas[i_best_alpha]
+            if this_best_mse < best_mse:
+                best_alpha = l1_alphas[i_best_alpha]
+                best_l1_ratio = l1_ratio
+                best_mse = this_best_mse
+
+        self.l1_ratio_ = best_l1_ratio
+        self.alpha_ = best_alpha
+        if self.alphas is None:
+            self.alphas_ = np.asarray(alphas)
+            if n_l1_ratio == 1:
+                self.alphas_ = self.alphas_[0]
+        # Remove duplicate alphas in case alphas is provided.
+        else:
+            self.alphas_ = np.asarray(alphas[0])
+
+        # Refit the model with the parameters selected
+        common_params = dict((name, value)
+                             for name, value in self.get_params().items()
+                             if name in model.get_params())
+        model.set_params(**common_params)
+        model.alpha = best_alpha
+        model.l1_ratio = best_l1_ratio
+        model.copy_X = copy_X
+        model.precompute = False
+        model.fit(X, y)
+        if not hasattr(self, 'l1_ratio'):
+            del self.l1_ratio_
+        self.coef_ = model.coef_
+        self.intercept_ = model.intercept_
+        self.dual_gap_ = model.dual_gap_
+        self.n_iter_ = model.n_iter_
+
+        return self
