@@ -335,6 +335,37 @@ class LassoADMMCV(LinearModel, RegressorMixin):
         # All LinearModelCV parameters except 'cv' are acceptable
         path_params = self.get_params()
         
+        copy_X = self.copy_X and self.fit_intercept
+
+        if isinstance(X, np.ndarray) or sparse.isspmatrix(X):
+            # Keep a reference to X
+            reference_to_old_X = X
+            # Let us not impose fortran ordering so far: it is
+            # not useful for the cross-validation loop and will be done
+            # by the model fitting itself
+            X = check_array(X, 'csc', copy=False)
+            if sparse.isspmatrix(X):
+                if (hasattr(reference_to_old_X, "data") and
+                   not np.may_share_memory(reference_to_old_X.data, X.data)):
+                    # X is a sparse matrix and has been copied
+                    copy_X = False
+            elif not np.may_share_memory(reference_to_old_X, X):
+                # X has been copied
+                copy_X = False
+            del reference_to_old_X
+        else:
+            X = check_array(X, 'csc', dtype=[np.float64, np.float32],
+                            order='F', copy=copy_X)
+            copy_X = False
+
+        if X.shape[0] != y.shape[0]:
+            raise ValueError("X and y have inconsistent dimensions (%d != %d)"
+                             % (X.shape[0], y.shape[0]))
+
+        
+        # All LinearModelCV parameters except 'cv' are acceptable
+        path_params = self.get_params()
+        
         path_params.pop('cv', None)
 
         alphas = self.alphas
