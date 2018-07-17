@@ -218,6 +218,7 @@ class FusedLassoADMM(GeneralizedLasso):
 
 class LassoADMMCV(LinearModel, RegressorMixin):
 
+<<<<<<< eaf8677d7142c3bc7dd4ebf6ce4a7ac487ee78fc
 <<<<<<< 22ddb3879dd8441da6eefab44ac5c1232d9617f8
     path = staticmethod(admm_path)
     
@@ -229,6 +230,8 @@ class LassoADMMCV(LinearModel, RegressorMixin):
         self.alphas = alphas
 =======
 
+=======
+>>>>>>> add LassoADMMCV class #34
     path = staticmethod(admm_path)
     
     def __init__(self, alphas=None, n_alphas=100, rho=1.0, fit_intercept=True,
