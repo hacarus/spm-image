@@ -212,3 +212,9 @@ class FusedLassoADMM(GeneralizedLasso):
         fused = np.eye(n_features) - np.eye(n_features, k=-1)
         fused[0, 0] = 0
         return self.sparse_coef * np.eye(n_features) + self.fused_coef * fused
+
+
+class LassoADMMCV(GeneralizedLasso, RegressorMixin):
+
+    def __init__():
+        
