@@ -218,6 +218,7 @@ class FusedLassoADMM(GeneralizedLasso):
 
 class LassoADMMCV(LinearModel, RegressorMixin):
 
+<<<<<<< 22ddb3879dd8441da6eefab44ac5c1232d9617f8
     path = staticmethod(admm_path)
     
     def __init__(self, eps=1e-3, n_alphas=100, alphas=None, rho=1.0, fit_intercept=True,
@@ -226,6 +227,16 @@ class LassoADMMCV(LinearModel, RegressorMixin):
         self.eps = eps
         self.n_alphas = n_alphas
         self.alphas = alphas
+=======
+
+    path = staticmethod(admm_path)
+    
+    def __init__(self, alphas=None, n_alphas=100, rho=1.0, fit_intercept=True,
+                 normalize=False, copy_X=True, max_iter=1000,
+                 tol=1e-4, cv=None, n_jobs=1):       
+        self.alphas = alphas
+        self.n_alphas = n_alphas
+>>>>>>> implement fit function in LassoADMMCV class, which is work in progress
         self.rho = rho
         self.fit_intercept = fit_intercept
         self.normalize = normalize
@@ -233,7 +244,10 @@ class LassoADMMCV(LinearModel, RegressorMixin):
         self.max_iter = max_iter
         self.tol = tol
         self.cv = cv
+<<<<<<< 22ddb3879dd8441da6eefab44ac5c1232d9617f8
         self.verbose = verbose
+=======
+>>>>>>> implement fit function in LassoADMMCV class, which is work in progress
         self.n_jobs = n_jobs
 
     def fit(self, X, y):
@@ -241,6 +255,7 @@ class LassoADMMCV(LinearModel, RegressorMixin):
                         ensure_2d=False)
         if y.shape[0] == 0:
             raise ValueError("y has 0 samples: %r" % y)
+<<<<<<< 22ddb3879dd8441da6eefab44ac5c1232d9617f8
 
         model = LassoADMM()
         
@@ -284,6 +299,48 @@ class LassoADMMCV(LinearModel, RegressorMixin):
                                  fit_intercept=False,
                                  eps=self.eps, n_alphas=self.n_alphas,
                                  normalize=False, copy_X=False)
+=======
+        
+        copy_X = self.copy_X and self.fit_intercept
+
+        if isinstance(X, np.ndarray) or sparse.isspmatrix(X):
+            # Keep a reference to X
+            reference_to_old_X = X
+            # Let us not impose fortran ordering so far: it is
+            # not useful for the cross-validation loop and will be done
+            # by the model fitting itself
+            X = check_array(X, 'csc', copy=False)
+            if sparse.isspmatrix(X):
+                if (hasattr(reference_to_old_X, "data") and
+                   not np.may_share_memory(reference_to_old_X.data, X.data)):
+                    # X is a sparse matrix and has been copied
+                    copy_X = False
+            elif not np.may_share_memory(reference_to_old_X, X):
+                # X has been copied
+                copy_X = False
+            del reference_to_old_X
+        else:
+            X = check_array(X, 'csc', dtype=[np.float64, np.float32],
+                            order='F', copy=copy_X)
+            copy_X = False
+
+        if X.shape[0] != y.shape[0]:
+            raise ValueError("X and y have inconsistent dimensions (%d != %d)"
+                             % (X.shape[0], y.shape[0]))
+
+        
+        # All LinearModelCV parameters except 'cv' are acceptable
+        path_params = self.get_params()
+        
+        path_params.pop('cv', None)
+
+        alphas = self.alphas
+
+        if alphas is None:
+        alphas = _alpha_grid(X, y, Xy=Xy, l1_ratio=1.0,
+                             fit_intercept=False, eps=eps, n_alphas=n_alphas,
+                             normalize=False, copy_X=False)
+>>>>>>> implement fit function in LassoADMMCV class, which is work in progress
         else:
             alphas = np.sort(alphas)[::-1]
             
@@ -300,17 +357,28 @@ class LassoADMMCV(LinearModel, RegressorMixin):
         # init cross-validation generator
         cv = check_cv(self.cv)
 
+<<<<<<< 22ddb3879dd8441da6eefab44ac5c1232d9617f8
+=======
+        ===================================================================
+        need to rewrite below code
+        ===================================================================
+
+>>>>>>> implement fit function in LassoADMMCV class, which is work in progress
         # Compute path for all folds and compute MSE to get the best alpha
         folds = list(cv.split(X, y))
         best_mse = np.inf
 
+<<<<<<< 22ddb3879dd8441da6eefab44ac5c1232d9617f8
         # add 'precompute' to path_params to use _path_residuals()
         path_params['precompute'] = 'auto'
         
+=======
+>>>>>>> implement fit function in LassoADMMCV class, which is work in progress
         # We do a double for loop folded in one, in order to be able to
         # iterate in parallel on l1_ratio and folds
         jobs = (delayed(_path_residuals)(X, y, train, test, self.path,
                                          path_params, alphas=this_alphas,
+<<<<<<< 22ddb3879dd8441da6eefab44ac5c1232d9617f8
                                          l1_ratio=1.0, X_order='F',
                                          dtype=X.dtype.type)
                 for this_alphas in alphas
@@ -322,10 +390,24 @@ class LassoADMMCV(LinearModel, RegressorMixin):
         mean_mse = np.mean(mse_paths, axis=0)
         self.mse_path_ = np.squeeze(np.rollaxis(mse_paths, 1, 0))
         for l1_alphas, mse_alphas in zip(alphas, mean_mse):
+=======
+                                         l1_ratio=this_l1_ratio, X_order='F',
+                                         dtype=X.dtype.type)
+                for this_l1_ratio, this_alphas in zip(l1_ratios, alphas)
+                for train, test in folds)
+        mse_paths = Parallel(n_jobs=self.n_jobs, verbose=self.verbose,
+                             backend="threading")(jobs)
+        mse_paths = np.reshape(mse_paths, (n_l1_ratio, len(folds), -1))
+        mean_mse = np.mean(mse_paths, axis=1)
+        self.mse_path_ = np.squeeze(np.rollaxis(mse_paths, 2, 1))
+        for l1_ratio, l1_alphas, mse_alphas in zip(l1_ratios, alphas,
+                                                   mean_mse):
+>>>>>>> implement fit function in LassoADMMCV class, which is work in progress
             i_best_alpha = np.argmin(mse_alphas)
             this_best_mse = mse_alphas[i_best_alpha]
             if this_best_mse < best_mse:
                 best_alpha = l1_alphas[i_best_alpha]
+<<<<<<< 22ddb3879dd8441da6eefab44ac5c1232d9617f8
                 best_mse = this_best_mse
 
         self.alpha_ = best_alpha
@@ -334,6 +416,20 @@ class LassoADMMCV(LinearModel, RegressorMixin):
         # Remove duplicate alphas in case alphas is provided.
         else:
             self.alphas_ = np.asarray(alphas)
+=======
+                best_l1_ratio = l1_ratio
+                best_mse = this_best_mse
+
+        self.l1_ratio_ = best_l1_ratio
+        self.alpha_ = best_alpha
+        if self.alphas is None:
+            self.alphas_ = np.asarray(alphas)
+            if n_l1_ratio == 1:
+                self.alphas_ = self.alphas_[0]
+        # Remove duplicate alphas in case alphas is provided.
+        else:
+            self.alphas_ = np.asarray(alphas[0])
+>>>>>>> implement fit function in LassoADMMCV class, which is work in progress
 
         # Refit the model with the parameters selected
         common_params = dict((name, value)
@@ -341,11 +437,23 @@ class LassoADMMCV(LinearModel, RegressorMixin):
                              if name in model.get_params())
         model.set_params(**common_params)
         model.alpha = best_alpha
+<<<<<<< 22ddb3879dd8441da6eefab44ac5c1232d9617f8
         model.copy_X = copy_X
         model.fit(X, y)
         
         self.coef_ = model.coef_
         self.intercept_ = model.intercept_
+=======
+        model.l1_ratio = best_l1_ratio
+        model.copy_X = copy_X
+        model.precompute = False
+        model.fit(X, y)
+        if not hasattr(self, 'l1_ratio'):
+            del self.l1_ratio_
+        self.coef_ = model.coef_
+        self.intercept_ = model.intercept_
+        self.dual_gap_ = model.dual_gap_
+>>>>>>> implement fit function in LassoADMMCV class, which is work in progress
         self.n_iter_ = model.n_iter_
 
         return self
