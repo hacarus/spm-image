@@ -266,7 +266,6 @@ class LassoADMMCV(GeneralizedLasso, RegressorMixin):
             raise ValueError("X and y have inconsistent dimensions (%d != %d)"
                              % (X.shape[0], y.shape[0]))
 
-        
         # All LinearModelCV parameters except 'cv' are acceptable
         path_params = self.get_params()
         
