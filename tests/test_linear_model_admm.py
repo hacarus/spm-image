@@ -1,7 +1,7 @@
 import unittest
 
 import numpy as np
-from spmimage.linear_model import LassoADMM, FusedLassoADMM
+from spmimage.linear_model import LassoADMM, FusedLassoADMM, LassoADMMCV
 from spmimage.linear_model.admm import admm_path
 from numpy.testing import assert_array_almost_equal
 
@@ -228,5 +228,15 @@ class TestAdmmPath(unittest.TestCase):
                                   decimal=3)
 
 
+class TestLassoADMMCV(unittest.TestCase):
+    def test_path_func(self):
+        # check if we can use admm_path function
+        admm_cv = LassoADMMCV()
+        self.assertEqual('admm_path', admm_cv.path.__name__)
+
+    def test_best_alpha(self):
+        # check if we can get correct best alpha
+        
+        
 if __name__ == '__main__':
     unittest.main()
