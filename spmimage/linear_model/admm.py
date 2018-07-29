@@ -2,11 +2,13 @@ from logging import getLogger
 from abc import abstractmethod
 
 import numpy as np
+from scipy import sparse
 
 from sklearn.utils import check_array, check_X_y
 from sklearn.base import RegressorMixin
-from sklearn.linear_model.base import LinearModel
-from sklearn.linear_model.coordinate_descent import _alpha_grid, _path_residuals
+from sklearn.linear_model.base import LinearModel, _pre_fit
+from sklearn.linear_model.coordinate_descent import _alpha_grid
+from sklearn.utils.extmath import safe_sparse_dot
 from sklearn.model_selection import check_cv
 from sklearn.externals.joblib import Parallel, delayed
 
@@ -49,6 +51,65 @@ def admm_path(X, y, Xy=None, alphas=None, eps=1e-3, n_alphas=100, rho=1.0, max_i
         n_iters.append(clf.n_iter_)
 
     return alphas, coefs, n_iters
+
+def _path_residuals(X, y, train, test, path, path_params, alphas=None,
+                    X_order=None, dtype=None):
+    X_train = X[train]
+    y_train = y[train]
+    X_test = X[test]
+    y_test = y[test]
+
+    # admm_path dosen't have fit_intercept and normalize as args.
+    # so, use default value in LassoADMMCV for fit_intercept and normalize
+    fit_intercept = True
+    normalize = False
+
+    if y.ndim == 1:
+        precompute = 'auto'
+    else:
+        # No Gram variant of multi-task exists right now.
+        # Fall back to default enet_multitask
+        precompute = False
+
+    X_train, y_train, X_offset, y_offset, X_scale, precompute, Xy = \
+        _pre_fit(X_train, y_train, None, precompute, normalize, fit_intercept,
+                 copy=False)
+
+    path_params = path_params.copy()
+    path_params['Xy'] = Xy
+    path_params['alphas'] = alphas
+
+    # Do the ordering and type casting here, as if it is done in the path,
+    # X is copied and a reference is kept here
+    X_train = check_array(X_train, 'csc', dtype=dtype, order=X_order)
+    alphas, coefs, _ = path(X_train, y_train, **path_params)
+    del X_train, y_train
+
+    if y.ndim == 1:
+        # Doing this so that it becomes coherent with multioutput.
+        coefs = coefs[np.newaxis, :, :]
+        y_offset = np.atleast_1d(y_offset)
+        y_test = y_test[:, np.newaxis]
+
+    if normalize:
+        nonzeros = np.flatnonzero(X_scale)
+        coefs[:, nonzeros] /= X_scale[nonzeros][:, np.newaxis]
+
+    intercepts = y_offset[:, np.newaxis] - np.dot(X_offset, coefs)
+    if sparse.issparse(X_test):
+        n_order, n_features, n_alphas = coefs.shape
+        # Work around for sparse matrices since coefs is a 3-D numpy array.
+        coefs_feature_major = np.rollaxis(coefs, 1)
+        feature_2d = np.reshape(coefs_feature_major, (n_features, -1))
+        X_test_coefs = safe_sparse_dot(X_test, feature_2d)
+        X_test_coefs = X_test_coefs.reshape(X_test.shape[0], n_order, -1)
+    else:
+        X_test_coefs = safe_sparse_dot(X_test, coefs)
+    residues = X_test_coefs - y_test[:, :, np.newaxis]
+    residues += intercepts
+    this_mses = ((residues ** 2).mean(axis=0)).mean(axis=0)
+
+    return this_mses
 
 
 def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float, tol: float, max_iter: int):
@@ -205,16 +266,15 @@ class LassoADMMCV(LinearModel, RegressorMixin):
 
     path = staticmethod(admm_path)
     
-    def __init__(self, eps=1e-3, n_alphas=100, alphas=None, rho=1.0, fit_intercept=True,
-                 normalize=False, copy_X=True, max_iter=1000,
-                 tol=1e-4, cv=None, verbose=False, n_jobs=1):       
+    def __init__(self, eps=1e-3, n_alphas=100, alphas=None, rho=1.0,  max_iter=1000,
+                 tol=1e-4, cv=None, verbose=False, n_jobs=1):
         self.eps = eps
         self.n_alphas = n_alphas
         self.alphas = alphas
         self.rho = rho
-        self.fit_intercept = fit_intercept
-        self.normalize = normalize
-        self.copy_X = copy_X
+        self.fit_intercept = True
+        self.normalize = False
+        self.copy_X = True
         self.max_iter = max_iter
         self.tol = tol
         self.cv = cv
@@ -222,6 +282,7 @@ class LassoADMMCV(LinearModel, RegressorMixin):
         self.n_jobs = n_jobs
 
     def fit(self, X, y):
+        print('change')
         y = check_array(y, copy=False, dtype=[np.float64, np.float32],
                         ensure_2d=False)
         if y.shape[0] == 0:
@@ -293,27 +354,22 @@ class LassoADMMCV(LinearModel, RegressorMixin):
         
         path_params.pop('cv', None)
         path_params.pop('n_jobs', None)
+        path_params.pop('verbose', None)
         
         alphas = self.alphas
 
         if alphas is None:
-            alphas = _alpha_grid(X, y, l1_ratio=1.0,
-                                 fit_intercept=False,
-                                 eps=self.eps, n_alphas=self.n_alphas,
-                                 normalize=False, copy_X=False)
+            alphas = _alpha_grid(X, y, l1_ratio=1.0, eps=self.eps,
+                                 n_alphas=self.n_alphas)
         else:
             alphas = np.sort(alphas)[::-1]
+
+        print('alphas in LassoADMMCV: ', alphas)
             
         # We want n_alphas to be the number of alphas used for each l1_ratio.
         n_alphas = len(alphas)
         path_params.update({'n_alphas': n_alphas})
 
-        path_params['copy_X'] = copy_X
-        # We are not computing in parallel, we can modify X
-        # inplace in the folds
-        if not (self.n_jobs == 1 or self.n_jobs is None):
-            path_params['copy_X'] = False
-            
         # init cross-validation generator
         cv = check_cv(self.cv)
 
@@ -321,30 +377,23 @@ class LassoADMMCV(LinearModel, RegressorMixin):
         folds = list(cv.split(X, y))
         best_mse = np.inf
 
-        # add 'precompute' to path_params to use _path_residuals()
-        path_params['precompute'] = 'auto'
-        
+
+        print('path params : \n', path_params)
         # We do a double for loop folded in one, in order to be able to
         # iterate in parallel on l1_ratio and folds
         jobs = (delayed(_path_residuals)(X, y, train, test, self.path,
-                                         path_params, alphas=this_alphas,
-                                         l1_ratio=1.0, X_order='F',
-                                         dtype=X.dtype.type)
-                for this_alphas in alphas
-                for train, test in folds)
+                                         path_params, alphas=alphas,
+                                         X_order='F', dtype=X.dtype.type)
+                for train, test in folds)        
         mse_paths = Parallel(n_jobs=self.n_jobs, verbose=self.verbose,
                              backend="threading")(jobs)
-        print('mse_paths.shape: ', mse_paths.shape)
         mse_paths = np.reshape(mse_paths, (len(folds), -1))
+        print('after reshape mse_paths.shape: ', mse_paths.shape)
         mean_mse = np.mean(mse_paths, axis=0)
         self.mse_path_ = np.squeeze(np.rollaxis(mse_paths, 1, 0))
-        for l1_alphas, mse_alphas in zip(alphas, mean_mse):
-            i_best_alpha = np.argmin(mse_alphas)
-            this_best_mse = mse_alphas[i_best_alpha]
-            if this_best_mse < best_mse:
-                best_alpha = l1_alphas[i_best_alpha]
-                best_mse = this_best_mse
 
+        best_alpha = alphas[np.argmin(mean_mse)]
+        
         self.alpha_ = best_alpha
         if self.alphas is None:
             self.alphas_ = np.asarray(alphas)
@@ -366,7 +415,6 @@ class LassoADMMCV(LinearModel, RegressorMixin):
                              if name in model.get_params())
         model.set_params(**common_params)
         model.alpha = best_alpha
-        model.copy_X = copy_X
         model.fit(X, y)
         
         self.coef_ = model.coef_
