@@ -295,7 +295,6 @@ class LassoADMMCV(LinearModel, RegressorMixin):
         self.n_jobs = n_jobs
 
     def fit(self, X, y):
-        print('change')
         y = check_array(y, copy=False, dtype=[np.float64, np.float32],
                         ensure_2d=False)
         if y.shape[0] == 0:
@@ -375,8 +374,6 @@ class LassoADMMCV(LinearModel, RegressorMixin):
                                  n_alphas=self.n_alphas)
         else:
             alphas = np.sort(alphas)[::-1]
-
-        print('alphas in LassoADMMCV: ', alphas)
             
         # We want n_alphas to be the number of alphas used for each l1_ratio.
         n_alphas = len(alphas)
@@ -389,8 +386,6 @@ class LassoADMMCV(LinearModel, RegressorMixin):
         folds = list(cv.split(X, y))
         best_mse = np.inf
 
-
-        print('path params : \n', path_params)
         # We do a double for loop folded in one, in order to be able to
         # iterate in parallel on l1_ratio and folds
         jobs = (delayed(_path_residuals)(X, y, train, test, self.path,
@@ -400,20 +395,11 @@ class LassoADMMCV(LinearModel, RegressorMixin):
         mse_paths = Parallel(n_jobs=self.n_jobs, verbose=self.verbose,
                              backend="threading")(jobs)
         mse_paths = np.reshape(mse_paths, (len(folds), -1))
-        print('after reshape mse_paths.shape: ', mse_paths.shape)
         mean_mse = np.mean(mse_paths, axis=0)
         self.mse_path_ = np.squeeze(np.rollaxis(mse_paths, 1, 0))
 
         best_alpha = alphas[np.argmin(mean_mse)]
         
-        self.alpha_ = best_alpha
-        if self.alphas is None:
-            self.alphas_ = np.asarray(alphas)
-        # Remove duplicate alphas in case alphas is provided.
-        else:
-            self.alphas_ = np.asarray(alphas)
-                best_l1_ratio = l1_ratio
-
         self.alpha_ = best_alpha
         if self.alphas is None:
             self.alphas_ = np.asarray(alphas)
