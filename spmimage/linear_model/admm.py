@@ -81,7 +81,7 @@ def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float,
     inv_matrix_DT = inv_matrix.dot(rho * D.T)
     threshold = alpha / rho
 
-    n_iter_ = []
+    n_iter_ = np.empty((n_targets,), dtype=int)
     # Update ADMM parameters by columns
     for k in range(n_targets):
         # initial cost
@@ -100,8 +100,8 @@ def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float,
             gap = np.abs(cost - pre_cost)
             if gap < tol:
                 break
-        n_iter_.append(t)
-    return np.squeeze(w_t), n_iter_
+        n_iter_[k] = t
+    return np.squeeze(w_t), n_iter_.tolist()
 
 
 class GeneralizedLasso(LinearModel, RegressorMixin):
