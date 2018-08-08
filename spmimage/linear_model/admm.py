@@ -50,7 +50,8 @@ def _update(X, y_k, D, inv_Xy_k, inv_D, alpha, rho, max_iter, tol):
     return w_k, t
 
 
-def admm_path(X, y, Xy=None, alphas=None, eps=1e-3, n_alphas=100, rho=1.0, max_iter=1000, tol=1e-04):
+def admm_path(X, y, Xy=None, alphas=None, eps=1e-3, n_alphas=100, rho=1.0, fit_intercept=True,
+              normalize=False, copy_X=True, max_iter=1000, tol=1e-04):
     _, n_features = X.shape
     multi_output = False
     n_iters = []
@@ -71,7 +72,7 @@ def admm_path(X, y, Xy=None, alphas=None, eps=1e-3, n_alphas=100, rho=1.0, max_i
         coefs = np.zeros((n_features, n_outputs, n_alphas), dtype=X.dtype)
 
     for i, alpha in enumerate(alphas):
-        clf = LassoADMM(alpha=alpha, rho=rho, max_iter=max_iter, tol=tol)
+        clf = LassoADMM(alpha=alpha, rho=rho, fit_intercept=fit_intercept, normalize=normalize, copy_X=copy_X, max_iter=max_iter, tol=tol)
         clf.fit(X, y)
         coefs[..., i] = clf.coef_
         n_iters.append(clf.n_iter_)
@@ -279,15 +280,15 @@ class LassoADMMCV(LinearModel, RegressorMixin):
 
     path = staticmethod(admm_path)
     
-    def __init__(self, eps=1e-3, n_alphas=100, alphas=None, rho=1.0,  max_iter=1000,
-                 tol=1e-4, cv=None, verbose=False, n_jobs=1):
+    def __init__(self, eps=1e-3, n_alphas=100, alphas=None, rho=1.0,  fit_intercept=True,
+                 normalize=False, copy_X=True, max_iter=1000, tol=1e-4, cv=None, verbose=False, n_jobs=1):
         self.eps = eps
         self.n_alphas = n_alphas
         self.alphas = alphas
         self.rho = rho
-        self.fit_intercept = True
-        self.normalize = False
-        self.copy_X = True
+        self.fit_intercept = fit_intercept
+        self.normalize = normalize
+        self.copy_X = copy_X
         self.max_iter = max_iter
         self.tol = tol
         self.cv = cv
