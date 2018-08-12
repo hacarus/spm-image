@@ -101,7 +101,7 @@ def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float,
             if gap < tol:
                 break
         n_iter_[k] = t
-    return np.squeeze(w_t), n_iter_.tolist()
+    return np.squeeze(w_t.T), n_iter_.tolist()
 
 
 class GeneralizedLasso(LinearModel, RegressorMixin):

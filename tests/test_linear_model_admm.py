@@ -117,12 +117,38 @@ class TestLassoADMM(unittest.TestCase):
         assert_array_almost_equal(clf.coef_, [0.249], decimal=3)
         assert_array_almost_equal(pred, [0.498, 0.746, 0.995], decimal=3)
 
+    def test_lasso_admm_toy_multi(self):
+        # for issue #39
+        X = np.eye(4)
+        y = np.array([[1, 1],
+                      [1, 0],
+                      [0, 1],
+                      [0, 0]])
+
+        clf = LassoADMM(alpha=0.05, tol=1e-8).fit(X, y)
+        assert_array_almost_equal(clf.coef_[0], [0.29999988, 0.29999988, -0.29999988, -0.29999988], decimal=3)
+        assert_array_almost_equal(clf.coef_[1], [0.29999988, -0.29999988, 0.29999988, -0.29999988], decimal=3)
+
     def test_lasso_admm(self):
         X, y, X_test, y_test = build_dataset()
 
         clf = LassoADMM(alpha=0.05, tol=1e-8).fit(X, y)
         self.assertGreater(clf.score(X_test, y_test), 0.99)
         self.assertLess(clf.n_iter_, 150)
+
+        clf = LassoADMM(alpha=0.05, fit_intercept=False).fit(X, y)
+        self.assertGreater(clf.score(X_test, y_test), 0.99)
+
+        # normalize doesn't seem to work well
+        clf = LassoADMM(alpha=0.144, rho=0.1, normalize=True).fit(X, y)
+        self.assertGreater(clf.score(X_test, y_test), 0.60)
+
+    def test_lasso_admm_multi(self):
+        X, y, X_test, y_test = build_dataset(n_targets=3)
+
+        clf = LassoADMM(alpha=0.05, tol=1e-8).fit(X, y)
+        self.assertGreater(clf.score(X_test, y_test), 0.99)
+        self.assertLess(clf.n_iter_[0], 150)
 
         clf = LassoADMM(alpha=0.05, fit_intercept=False).fit(X, y)
         self.assertGreater(clf.score(X_test, y_test), 0.99)
