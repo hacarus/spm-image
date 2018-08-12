@@ -20,6 +20,25 @@ def _cost_function(X, y, w, z, alpha):
     return np.linalg.norm(y - X.dot(w)) / n_samples + alpha * np.sum(np.abs(z))
 
 
+def _update(X, y_k, w_k, z_k, h_k, D, alpha, rho, max_iter, tol, inv_Xy_k, inv_D):
+    cost = _cost_function(X, y_k, w_k, z_k, alpha)
+    threshold = alpha / rho
+    for t in range(max_iter):
+        # Update
+        w_k = inv_Xy_k + inv_D.dot(z_k - h_k / rho)
+        Dw_t = D.dot(w_k)
+        z_k = _soft_threshold(Dw_t + h_k / rho, threshold)
+        h_k += rho * (Dw_t - z_k)
+
+        # after cost
+        pre_cost = cost
+        cost = _cost_function(X, y_k, w_k, z_k, alpha)
+        gap = np.abs(cost - pre_cost)
+        if gap < tol:
+            break
+    return w_k, z_k, h_k, t
+
+
 def admm_path(X, y, Xy=None, alphas=None, eps=1e-3, n_alphas=100, rho=1.0, max_iter=1000, tol=1e-04):
     _, n_features = X.shape
     multi_output = False
@@ -72,34 +91,19 @@ def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float,
 
     # Initialize ADMM parameters
     w_t = X.T.dot(y) / n_samples
-    z_t = D.dot(w_t.copy())
+    z_t = D.dot(w_t)
     h_t = np.zeros(w_t.shape)
 
     # Calculate inverse matrix
     inv_matrix = np.linalg.inv(X.T.dot(X) / n_samples + rho * D.T.dot(D))
-    inv_matrix_XTy = inv_matrix.dot(X.T).dot(y) / n_samples
-    inv_matrix_DT = inv_matrix.dot(rho * D.T)
-    threshold = alpha / rho
+    inv_Xy = inv_matrix.dot(X.T).dot(y) / n_samples
+    inv_D = inv_matrix.dot(rho * D.T)
 
     n_iter_ = np.empty((n_targets,), dtype=int)
     # Update ADMM parameters by columns
     for k in range(n_targets):
-        # initial cost
-        cost = _cost_function(X, y[:, k], w_t[:, k], z_t[:, k], alpha)
-        for t in range(max_iter):
-            # Update
-            w_t[:, k] = inv_matrix_XTy[:, k] \
-                        + inv_matrix_DT.dot(z_t[:, k] - h_t[:, k] / rho)
-            Dw_t = D.dot(w_t[:, k])
-            z_t[:, k] = _soft_threshold(Dw_t + h_t[:, k] / rho, threshold)
-            h_t[:, k] += rho * (Dw_t - z_t[:, k])
-
-            # after cost
-            pre_cost = cost
-            cost = _cost_function(X, y[:, k], w_t[:, k], z_t[:, k], alpha)
-            gap = np.abs(cost - pre_cost)
-            if gap < tol:
-                break
+        w_t[:, k], z_t[:, k], h_t[:, k], t = _update(X, y[:, k], w_t[:, k], z_t[:, k], h_t[:, k], D, alpha, rho,
+                                                     max_iter, tol, inv_Xy[:, k], inv_D)
         n_iter_[k] = t
     return np.squeeze(w_t.T), n_iter_.tolist()
 
