@@ -79,17 +79,14 @@ def admm_path(X, y, Xy=None, alphas=None, eps=1e-3, n_alphas=100, rho=1.0, fit_i
 
     return alphas, coefs, n_iters
 
-def _path_residuals(X, y, train, test, path, path_params, alphas=None,
+def _path_residuals(X, y, train, test, path_params, alphas=None,
                     X_order=None, dtype=None):
     X_train = X[train]
     y_train = y[train]
     X_test = X[test]
     y_test = y[test]
-
-    # admm_path dosen't have fit_intercept and normalize as args.
-    # so, use default value in LassoADMMCV for fit_intercept and normalize
-    fit_intercept = True
-    normalize = False
+    fit_intercept = path_params['fit_intercept']
+    normalize = path_params['normalize']
 
     if y.ndim == 1:
         precompute = 'auto'
@@ -104,12 +101,14 @@ def _path_residuals(X, y, train, test, path, path_params, alphas=None,
 
     path_params = path_params.copy()
     path_params['Xy'] = Xy
+    path_params['copy_X'] = False
     path_params['alphas'] = alphas
+    
 
     # Do the ordering and type casting here, as if it is done in the path,
     # X is copied and a reference is kept here
     X_train = check_array(X_train, 'csc', dtype=dtype, order=X_order)
-    alphas, coefs, _ = path(X_train, y_train, **path_params)
+    alphas, coefs, _ = admm_path(X_train, y_train, **path_params)
     del X_train, y_train
 
     if y.ndim == 1:
