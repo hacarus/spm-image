@@ -376,7 +376,7 @@ class LassoADMMCV(LinearModel, RegressorMixin):
 
         # We do a double for loop folded in one, in order to be able to
         # iterate in parallel on l1_ratio and folds
-        jobs = (delayed(_path_residuals)(X, y, train, test, self.path,
+        jobs = (delayed(_path_residuals)(X, y, train, test,
                                          path_params, alphas=alphas,
                                          X_order='F', dtype=X.dtype.type)
                 for train, test in folds)        
