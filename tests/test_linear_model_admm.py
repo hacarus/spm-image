@@ -256,11 +256,7 @@ class TestAdmmPath(unittest.TestCase):
 
 
 class TestLassoADMMCV(unittest.TestCase):
-    def test_path_func(self):
-        # check if we can use admm_path function
-        admm_cv = LassoADMMCV()
-        self.assertEqual('admm_path', admm_cv.path.__name__)
-
+    
     def test_best_alpha(self):
         # check if we can get correct best alpha
         X, y, X_test, y_test = build_dataset()
