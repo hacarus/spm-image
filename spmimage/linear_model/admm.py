@@ -109,6 +109,7 @@ def _path_residuals(X, y, train, test, path_params, alphas=None,
     # X is copied and a reference is kept here
     X_train = check_array(X_train, 'csc', dtype=dtype, order=X_order)
     alphas, coefs, _ = admm_path(X_train, y_train, **path_params)
+    
     del X_train, y_train
 
     if y.ndim == 1:
@@ -418,6 +419,6 @@ class LassoADMMCV(LinearModel, RegressorMixin):
         self.coef_ = model.coef_
         self.intercept_ = model.intercept_
         self.n_iter_ = model.n_iter_
-
+        
         return self
 
