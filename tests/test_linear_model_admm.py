@@ -120,14 +120,15 @@ class TestLassoADMM(unittest.TestCase):
     def test_lasso_admm_toy_multi(self):
         # for issue #39
         X = np.eye(4)
-        y = np.array([[1, 1],
-                      [1, 0],
-                      [0, 1],
-                      [0, 0]])
+        y = np.array([[1, 1, 0],
+                      [1, 0, 1],
+                      [0, 1, 0],
+                      [0, 0, 1]])
 
         clf = LassoADMM(alpha=0.05, tol=1e-8).fit(X, y)
         assert_array_almost_equal(clf.coef_[0], [0.29999988, 0.29999988, -0.29999988, -0.29999988], decimal=3)
         assert_array_almost_equal(clf.coef_[1], [0.29999988, -0.29999988, 0.29999988, -0.29999988], decimal=3)
+        assert_array_almost_equal(clf.coef_[2], [-0.29999988, 0.29999988, -0.29999988, 0.29999988], decimal=3)
 
     def test_lasso_admm(self):
         X, y, X_test, y_test = build_dataset()
