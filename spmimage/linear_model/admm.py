@@ -10,6 +10,7 @@ from sklearn.linear_model.base import LinearModel, _pre_fit
 from sklearn.linear_model.coordinate_descent import _alpha_grid
 from sklearn.utils.extmath import safe_sparse_dot
 from sklearn.model_selection import check_cv
+from sklearn.externals.joblib import Parallel, delayed
 
 logger = getLogger(__name__)
 
@@ -22,7 +23,6 @@ def _cost_function(X, y, w, z, alpha):
     n_samples = X.shape[0]
     return np.linalg.norm(y - X.dot(w)) / n_samples + alpha * np.sum(np.abs(z))
 
-x
 def _update(X, y_k, D, inv_Xy_k, inv_D, alpha, rho, max_iter, tol):
     # Initialize ADMM parameters
     n_samples = X.shape[0]
