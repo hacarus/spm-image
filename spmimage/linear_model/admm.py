@@ -189,7 +189,7 @@ With alpha=0, this algorithm does not converge well. You are advised to use the 
 
         n_features = X.shape[1]
         if self.tridiagonal:
-            X = sp.csx_matrix(X)
+            X = sp.dia_matrix(X)
         D = self.generate_transform_matrix(n_features)
         self.coef_, self.n_iter_ = _admm(X, y, D, self.alpha, self.rho,
                                         self.tol, self.max_iter, self.tridiagonal)
