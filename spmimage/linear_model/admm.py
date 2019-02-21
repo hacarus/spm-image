@@ -25,9 +25,9 @@ def _dia_to_tridiagonal(X):
         if offset == 1:
             one = index
         index = index + 1
-    band = X.data[[minusone, zero, one], :]
-    band[0, 0] = 0
-    band[2, n_samples - 1] = 0
+    band = X.data[[one, zero, minusone], :]
+    #band[0, 0] = 0
+    #band[2, n_samples - 1] = 0
     return band
     
 
@@ -128,8 +128,8 @@ def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float,
     # Calculate inverse matrix
     if tridiagonal:
         coef_matrix = _dia_to_tridiagonal(sp.sparse.dia_matrix(safe_sparse_dot(X.T, X) / n_samples
-                                        + rho * safe_sparse_dot(D.T, D)))
-        inv_Xy = sp.linalg.solve_banded((1, 1), coef_matrix, safe_sparse_dot(X.T, y))
+                                        + rho * safe_sparse_dot(D.T, D))) # banded form
+        inv_Xy = sp.linalg.solve_banded((1, 1), coef_matrix, safe_sparse_dot(X.T, y) / n_samples)
         inv_D = D # does not use this
     else:
         coef_matrix = X.T.dot(X) / n_samples + rho * D.T.dot(D)
@@ -246,6 +246,7 @@ class FusedLassoADMM(GeneralizedLasso):
                          tol=tol, tridiagonal=diagonal)
         self.sparse_coef = sparse_coef
         self.fused_coef = fused_coef
+        self.alpha = alpha
         self.diagonal = diagonal
 
     def generate_transform_matrix(self, n_features: int) -> np.ndarray:
