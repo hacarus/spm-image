@@ -14,14 +14,17 @@ from sklearn.externals.joblib import Parallel, delayed
 logger = getLogger(__name__)
 
 
-def _dia_to_tridiagonal(X, n_samples: int):
-    for index in 3:
-        if X.offsets[index] == 0:
+def _dia_to_tridiagonal(X):
+    n_samples = X.shape[0]
+    index = 0
+    for offset in X.offsets:
+        if offset == 0:
             zero = index
-        if X.offsets[index] == -1:
+        if offset == -1:
             minusone = index
-        if X.offsets[index] == 1:
+        if offset == 1:
             one = index
+        index = index + 1
     band = X.data[[minusone, zero, one], :]
     band[0, 0] = 0
     band[2, n_samples - 1] = 0
@@ -52,7 +55,7 @@ def _update(X, y_k, D, coef_matrix, inv_Xy_k, inv_D, alpha, rho, max_iter, tol, 
         if tridiagonal:
             w_k = inv_Xy_k + \
                 sp.linalg.solve_banded((1, 1), coef_matrix,
-                                        D.T.safe_sparse_dot((rho * z_k - h_k)))
+                                        safe_sparse_dot(D.T, rho * z_k - h_k))
         else:
             w_k = inv_Xy_k + inv_D.dot(z_k - h_k / rho)
         Dw_t = D.dot(w_k)
@@ -124,9 +127,10 @@ def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float,
 
     # Calculate inverse matrix
     if tridiagonal:
-        coef_matrix = _dia_to_tridiagonal(X.T.safe_sparse_dot(X) / n_samples
-                                        + rho * D.T.safe_sparse_dot(D))
-        inv_Xy = sp.linalg.solve_banded((1, 1), coef_matrix, X.T.safe_sparse_dot(y))
+        coef_matrix = _dia_to_tridiagonal(sp.sparse.dia_matrix(safe_sparse_dot(X.T, X) / n_samples
+                                        + rho * safe_sparse_dot(D.T, D)))
+        inv_Xy = sp.linalg.solve_banded((1, 1), coef_matrix, safe_sparse_dot(X.T, y))
+        inv_D = D # does not use this
     else:
         coef_matrix = X.T.dot(X) / n_samples + rho * D.T.dot(D)
         inv_matrix = np.linalg.inv(coef_matrix)
@@ -142,7 +146,7 @@ def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float,
             w_t, n_iter_[0] = _update(X, y, D, coef_matrix, inv_Xy, inv_D, alpha, rho, max_iter, tol, tridiagonal)
     else:
         results = Parallel(n_jobs=-1, backend='threading')(
-            delayed(_update)(X, y[:, k], D, inv_Xy[:, k], inv_D, alpha, rho, max_iter, tol) for k in range(n_targets)
+            delayed(_update)(X, y[:, k], D, coef_matrix, inv_Xy[:, k], inv_D, alpha, rho, max_iter, tol, tridiagonal) for k in range(n_targets)
         )
         for k in range(n_targets):
             w_t[:, k], n_iter_[k] = results[k]
@@ -189,7 +193,7 @@ With alpha=0, this algorithm does not converge well. You are advised to use the 
 
         n_features = X.shape[1]
         if self.tridiagonal:
-            X = sp.dia_matrix(X)
+            X = sp.sparse.dia_matrix(X)
         D = self.generate_transform_matrix(n_features)
         self.coef_, self.n_iter_ = _admm(X, y, D, self.alpha, self.rho,
                                         self.tol, self.max_iter, self.tridiagonal)
@@ -249,5 +253,5 @@ class FusedLassoADMM(GeneralizedLasso):
         fused[0, 0] = 0
         generated = self.sparse_coef * np.eye(n_features) + self.fused_coef * fused
         if self.diagonal:
-            return sp.dia_matrix(generated)
+            return sp.sparse.dia_matrix(generated)
         return generated
