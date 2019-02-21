@@ -26,8 +26,6 @@ def _dia_to_tridiagonal(X):
             one = index
         index = index + 1
     band = X.data[[one, zero, minusone], :]
-    #band[0, 0] = 0
-    #band[2, n_samples - 1] = 0
     return band
     
 
