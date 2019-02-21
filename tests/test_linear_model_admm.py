@@ -226,6 +226,19 @@ class TestFusedLassoADMM(unittest.TestCase):
         assert_array_almost_equal(actual, [41.367, 71.471, 101.575], decimal=3)
         self.assertLess(clf.n_iter_, clf.max_iter)
 
+
+    def test_fused_lasso_diagonal(self):
+        X = np.eye(4)
+        beta = np.array([4, 4, 0, 0])
+        y = X.dot(beta)
+        T = np.array([[5., 6., 7., 8.], [9., 10., 11., 12.], [13., 14., 15., 16.]])  # test sample
+        clf = FusedLassoADMM(alpha=1e-8, sparse_coef=1e-4).fit(X, y)
+        actual = clf.predict(T)
+        assert_array_almost_equal(clf.coef_, [3.999e+00, 3.999e+00, -7.296e-03, 9.860e-04], decimal=3)
+        assert_array_almost_equal(actual, [43.95, 75.916, 107.883], decimal=3)
+        self.assertLess(clf.n_iter_, 100)
+
+
     def test_simple_lasso(self):
         X, y, X_test, y_test = build_dataset()
 
