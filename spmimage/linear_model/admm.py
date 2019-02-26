@@ -16,18 +16,16 @@ logger = getLogger(__name__)
 
 def _dia_to_tridiagonal(X):
     n_samples = X.shape[0]
-    index = 0
-    for offset in X.offsets:
+    for index, offset in enumerate(X.offsets):
         if offset == 0:
             zero = index
         if offset == -1:
             minusone = index
         if offset == 1:
             one = index
-        index = index + 1
     band = X.data[[one, zero, minusone], :]
     return band
-    
+
 
 def _soft_threshold(X: np.ndarray, thresh: float) -> np.ndarray:
     return np.where(np.abs(X) <= thresh, 0, X - thresh * np.sign(X))
@@ -99,7 +97,8 @@ def admm_path(X, y, Xy=None, alphas=None, eps=1e-3, n_alphas=100, rho=1.0, max_i
     return alphas, coefs, n_iters
 
 
-def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float,
+def _admm(
+        X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float,
         rho: float, tol: float, max_iter: int, tridiagonal: bool):
     """Alternate Direction Multiplier Method(ADMM) for Generalized Lasso.
 
