@@ -253,3 +253,20 @@ class FusedLassoADMM(GeneralizedLasso):
         if self.diagonal:
             return sp.sparse.dia_matrix(generated)
         return generated
+
+class TrendFilteringADMM(GeneralizedLasso):
+    def __init__(self, margin = 1, alpha=1.0, rho=1.0, fit_intercept=True,
+                 normalize=False, copy_X=True, max_iter=1000,
+                 tol=1e-4):
+        super().__init__(alpha=alpha, rho=rho, fit_intercept=fit_intercept,
+                         normalize=normalize, copy_X=copy_X, max_iter=max_iter,
+                         tol=tol)
+        self.margin = margin
+        
+    def generate_transform_matrix(self, n_features: int) -> np.ndarray:
+        D = np.eye(n_features, k=-1) + np.eye(n_features, k=1) - 2*np.eye(n_features)
+        D[0:self.margin,0] = -2
+        D[0:self.margin,1] = 2
+        D[-1:-self.margin,-1] = -2
+        D[-1:-self.margin,-2] = 2
+        return D
