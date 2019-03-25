@@ -226,7 +226,6 @@ class TestFusedLassoADMM(unittest.TestCase):
         assert_array_almost_equal(actual, [41.367, 71.471, 101.575], decimal=3)
         self.assertLess(clf.n_iter_, clf.max_iter)
 
-
     def test_fused_lasso_diagonal(self):
         X = np.eye(4)
         beta = np.array([4, 4, 0, 0])
@@ -237,7 +236,6 @@ class TestFusedLassoADMM(unittest.TestCase):
         assert_array_almost_equal(clf.coef_, [4.00e+00, 4.00e+00, 6.40e-07, 7.04e-14], decimal=3)
         assert_array_almost_equal(actual, [44., 76., 108.], decimal=3)
         self.assertLess(clf.n_iter_, 100)
-
 
     def test_simple_lasso(self):
         X, y, X_test, y_test = build_dataset()
@@ -259,11 +257,11 @@ class TestTrendFilteringADMM(unittest.TestCase):
 
         # small regularization parameter
         clf = TrendFilteringADMM(alpha=1e-8).fit(X, y)
-        assert_array_almost_equal(clf.coef_, [-0.022,  9.788,  20.124, 10.006, -0.108], decimal=3)
+        assert_array_almost_equal(clf.coef_, [-0.022, 9.788, 20.124, 10.006, -0.108], decimal=3)
 
         # default
         clf = TrendFilteringADMM(alpha=0.01).fit(X, y)
-        assert_array_almost_equal(clf.coef_, [0.038, 9.979, 19.939, 9.989, 0.039,], decimal=3)
+        assert_array_almost_equal(clf.coef_, [0.038, 9.979, 19.939, 9.989, 0.039], decimal=3)
 
         # all coefs will be zero
         clf = TrendFilteringADMM(alpha=1e5).fit(X, y)
