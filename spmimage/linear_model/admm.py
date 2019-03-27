@@ -50,8 +50,8 @@ def _update(X, y_k, D, coef_matrix, inv_Xy_k, inv_D, alpha, rho, max_iter, tol, 
         # Update
         if tridiagonal:
             w_k = inv_Xy_k + \
-                sp.linalg.solve_banded((1, 1), coef_matrix,
-                                        safe_sparse_dot(D.T, rho * z_k - h_k))
+                  sp.linalg.solve_banded((1, 1), coef_matrix,
+                                         safe_sparse_dot(D.T, rho * z_k - h_k))
         else:
             w_k = inv_Xy_k + inv_D.dot(z_k - h_k / rho)
         Dw_t = D.dot(w_k)
@@ -125,9 +125,9 @@ def _admm(
     # Calculate inverse matrix
     if tridiagonal:
         coef_matrix = _dia_to_tridiagonal(sp.sparse.dia_matrix(safe_sparse_dot(X.T, X) / n_samples
-                                        + rho * safe_sparse_dot(D.T, D))) # banded form
+                                                               + rho * safe_sparse_dot(D.T, D)))  # banded form
         inv_Xy = sp.linalg.solve_banded((1, 1), coef_matrix, safe_sparse_dot(X.T, y) / n_samples)
-        inv_D = D # does not use this
+        inv_D = D  # does not use this
     else:
         coef_matrix = X.T.dot(X) / n_samples + rho * D.T.dot(D)
         inv_matrix = np.linalg.inv(coef_matrix)
@@ -143,7 +143,8 @@ def _admm(
             w_t, n_iter_[0] = _update(X, y, D, coef_matrix, inv_Xy, inv_D, alpha, rho, max_iter, tol, tridiagonal)
     else:
         results = Parallel(n_jobs=-1, backend='threading')(
-            delayed(_update)(X, y[:, k], D, coef_matrix, inv_Xy[:, k], inv_D, alpha, rho, max_iter, tol, tridiagonal) for k in range(n_targets)
+            delayed(_update)(X, y[:, k], D, coef_matrix, inv_Xy[:, k], inv_D, alpha, rho, max_iter, tol, tridiagonal)
+            for k in range(n_targets)
         )
         for k in range(n_targets):
             w_t[:, k], n_iter_[k] = results[k]
@@ -193,7 +194,7 @@ With alpha=0, this algorithm does not converge well. You are advised to use the 
             X = sp.sparse.dia_matrix(X)
         D = self.generate_transform_matrix(n_features)
         self.coef_, self.n_iter_ = _admm(X, y, D, self.alpha, self.rho,
-                                        self.tol, self.max_iter, self.tridiagonal)
+                                         self.tol, self.max_iter, self.tridiagonal)
 
         if y.shape[1] == 1:
             self.n_iter_ = self.n_iter_[0]
@@ -250,6 +251,28 @@ class FusedLassoADMM(GeneralizedLasso):
         fused = np.eye(n_features) - np.eye(n_features, k=-1)
         fused[0, 0] = 0
         generated = self.sparse_coef * np.eye(n_features) + self.fused_coef * fused
+        if self.diagonal:
+            return sp.sparse.dia_matrix(generated)
+        return generated
+
+
+class TrendFilteringADMM(GeneralizedLasso):
+    def __init__(self, alpha=1.0, sparse_coef=1.0, trend_coef=1.0, rho=1.0, fit_intercept=True,
+                 normalize=False, copy_X=True, max_iter=1000,
+                 tol=1e-4, diagonal=False):
+        super().__init__(alpha=alpha, rho=rho, fit_intercept=fit_intercept,
+                         normalize=normalize, copy_X=copy_X, max_iter=max_iter,
+                         tol=tol, tridiagonal=diagonal)
+        self.sparse_coef = sparse_coef
+        self.trend_coef = trend_coef
+        self.diagonal = diagonal
+
+    def generate_transform_matrix(self, n_features: int) -> np.ndarray:
+        trend = 2 * np.eye(n_features) - np.eye(n_features, k=-1) - np.eye(n_features, k=1)
+        trend[0, 0] = 1
+        trend[-1:, -1] = 1
+
+        generated = self.sparse_coef * np.eye(n_features) + self.trend_coef * trend
         if self.diagonal:
             return sp.sparse.dia_matrix(generated)
         return generated

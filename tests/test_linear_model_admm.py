@@ -1,7 +1,7 @@
 import unittest
 
 import numpy as np
-from spmimage.linear_model import LassoADMM, FusedLassoADMM
+from spmimage.linear_model import LassoADMM, FusedLassoADMM, TrendFilteringADMM
 from spmimage.linear_model.admm import admm_path
 from numpy.testing import assert_array_almost_equal
 
@@ -226,7 +226,6 @@ class TestFusedLassoADMM(unittest.TestCase):
         assert_array_almost_equal(actual, [41.367, 71.471, 101.575], decimal=3)
         self.assertLess(clf.n_iter_, clf.max_iter)
 
-
     def test_fused_lasso_diagonal(self):
         X = np.eye(4)
         beta = np.array([4, 4, 0, 0])
@@ -238,7 +237,6 @@ class TestFusedLassoADMM(unittest.TestCase):
         assert_array_almost_equal(actual, [44., 76., 108.], decimal=3)
         self.assertLess(clf.n_iter_, 100)
 
-
     def test_simple_lasso(self):
         X, y, X_test, y_test = build_dataset()
 
@@ -246,6 +244,39 @@ class TestFusedLassoADMM(unittest.TestCase):
         clf = FusedLassoADMM(alpha=0.05, sparse_coef=1, fused_coef=0, tol=1e-8).fit(X, y)
         self.assertGreater(clf.score(X_test, y_test), 0.99)
         self.assertLess(clf.n_iter_, 150)
+
+
+class TestTrendFilteringADMM(unittest.TestCase):
+    def setUp(self):
+        np.random.seed(0)
+
+    def test_trend_marix(self):
+        D = np.array([[1, -1, 0, 0, 0], [-1, 2, -1, 0, 0], [0, -1, 2, -1, 0], [0, 0, -1, 2, -1], [0, 0, 0, -1, 1]])
+        clf = TrendFilteringADMM(sparse_coef=1, trend_coef=0)
+        assert_array_almost_equal(np.eye(5), clf.generate_transform_matrix(5))
+
+        clf = TrendFilteringADMM(sparse_coef=0, trend_coef=1)
+        assert_array_almost_equal(D, clf.generate_transform_matrix(5))
+
+        clf = TrendFilteringADMM(sparse_coef=1, trend_coef=1)
+        assert_array_almost_equal(np.eye(5) + D, clf.generate_transform_matrix(5))
+
+    def test_trend_filtering(self):
+        X = np.random.normal(0.0, 1.0, (8, 5))
+        beta = np.array([0., 10., 20., 10., 0.])
+        y = X.dot(beta)
+
+        # small regularization parameter
+        clf = TrendFilteringADMM(alpha=1e-8).fit(X, y)
+        assert_array_almost_equal(np.round(clf.coef_), [0,  10, 20, 10, 0])
+
+        # default
+        clf = TrendFilteringADMM(alpha=0.01).fit(X, y)
+        assert_array_almost_equal(clf.coef_, [0.031,  9.511, 20.224,  9.934, -0.127], decimal=3)
+
+        # all coefs will be zero
+        clf = TrendFilteringADMM(alpha=1e5).fit(X, y)
+        assert_array_almost_equal(clf.coef_, [0., 0., 0., 0., 0.], decimal=1)
 
 
 class TestAdmmPath(unittest.TestCase):
