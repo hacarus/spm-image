@@ -250,6 +250,17 @@ class TestTrendFilteringADMM(unittest.TestCase):
     def setUp(self):
         np.random.seed(0)
 
+    def test_trend_marix(self):
+        D = np.array([[1, -1, 0, 0, 0], [-1, 2, -1, 0, 0], [0, -1, 2, -1, 0], [0, 0, -1, 2, -1], [0, 0, 0, -1, 1]])
+        clf = TrendFilteringADMM(sparse_coef=1, trend_coef=0)
+        assert_array_almost_equal(np.eye(5), clf.generate_transform_matrix(5))
+
+        clf = TrendFilteringADMM(sparse_coef=0, trend_coef=1)
+        assert_array_almost_equal(D, clf.generate_transform_matrix(5))
+
+        clf = TrendFilteringADMM(sparse_coef=1, trend_coef=1)
+        assert_array_almost_equal(np.eye(5) + D, clf.generate_transform_matrix(5))
+
     def test_trend_filtering(self):
         X = np.random.normal(0.0, 1.0, (8, 5))
         beta = np.array([0., 10., 20., 10., 0.])
@@ -257,11 +268,11 @@ class TestTrendFilteringADMM(unittest.TestCase):
 
         # small regularization parameter
         clf = TrendFilteringADMM(alpha=1e-8).fit(X, y)
-        assert_array_almost_equal(clf.coef_, [-0.022, 9.788, 20.124, 10.006, -0.108], decimal=3)
+        assert_array_almost_equal(np.round(clf.coef_), [0,  10, 20, 10, 0])
 
         # default
         clf = TrendFilteringADMM(alpha=0.01).fit(X, y)
-        assert_array_almost_equal(clf.coef_, [0.038, 9.979, 19.939, 9.989, 0.039], decimal=3)
+        assert_array_almost_equal(clf.coef_, [0.031,  9.511, 20.224,  9.934, -0.127], decimal=3)
 
         # all coefs will be zero
         clf = TrendFilteringADMM(alpha=1e5).fit(X, y)
