@@ -216,10 +216,14 @@ class LassoADMM(GeneralizedLasso):
 
     def __init__(self, alpha=1.0, rho=1.0, fit_intercept=True,
                  normalize=False, copy_X=True, max_iter=1000,
-                 tol=1e-4):
+                 tol=1e-4, tridiagonal=False):
+        """Variables Description:
+        tridiagonal: Using Tridiagonal Matrix Algorithm (TDM)
+                     This mode can be used if X.T.dot(X) (not X) is a tridiagonal matrix.
+        """
         super().__init__(alpha=alpha, rho=rho, fit_intercept=fit_intercept,
                          normalize=normalize, copy_X=copy_X, max_iter=max_iter,
-                         tol=tol)
+                         tol=tol, tridiagonal=tridiagonal)
 
     def generate_transform_matrix(self, n_features: int) -> np.ndarray:
         return np.eye(n_features)
