@@ -137,10 +137,7 @@ def _admm(
     # Update ADMM parameters by columns
     n_iter_ = np.empty((n_targets,), dtype=int)
     if n_targets == 1:
-        if tridiagonal:
-            w_t, n_iter_[0] = _update(X, y, D, coef_matrix, inv_Xy, inv_D, alpha, rho, max_iter, tol, tridiagonal)
-        else:
-            w_t, n_iter_[0] = _update(X, y, D, coef_matrix, inv_Xy, inv_D, alpha, rho, max_iter, tol, tridiagonal)
+        w_t, n_iter_[0] = _update(X, y, D, coef_matrix, inv_Xy, inv_D, alpha, rho, max_iter, tol, tridiagonal)
     else:
         results = Parallel(n_jobs=-1, backend='threading')(
             delayed(_update)(X, y[:, k], D, coef_matrix, inv_Xy[:, k], inv_D, alpha, rho, max_iter, tol, tridiagonal)
