@@ -231,7 +231,7 @@ class TestFusedLassoADMM(unittest.TestCase):
         beta = np.array([4, 4, 0, 0])
         y = X.dot(beta)
         T = np.array([[5., 6., 7., 8.], [9., 10., 11., 12.], [13., 14., 15., 16.]])  # test sample
-        clf = FusedLassoADMM(fit_intercept=False, sparse_coef=1e-4, fused_coef=1e-4, diagonal=True).fit(X, y)
+        clf = FusedLassoADMM(fit_intercept=False, sparse_coef=1e-4, fused_coef=1e-4, tridiagonal=True).fit(X, y)
         actual = clf.predict(T)
         assert_array_almost_equal(clf.coef_, [4.00e+00, 4.00e+00, 6.40e-07, 7.04e-14], decimal=3)
         assert_array_almost_equal(actual, [44., 76., 108.], decimal=3)

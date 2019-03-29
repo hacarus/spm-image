@@ -156,6 +156,10 @@ class GeneralizedLasso(LinearModel, RegressorMixin):
     def __init__(self, alpha=1.0, rho=1.0, fit_intercept=True,
                  normalize=False, copy_X=True, max_iter=1000,
                  tol=1e-4, tridiagonal=False):
+        """Variables Description:
+        tridiagonal: Using Tridiagonal Matrix Algorithm (TDM)
+                     This mode can be used if both X.T.dot(X) and D.T.dot(D) (not X or D) are tridiagonal matrices.
+        """
         self.alpha = alpha
         self.rho = rho
         self.fit_intercept = fit_intercept
@@ -235,20 +239,23 @@ class FusedLassoADMM(GeneralizedLasso):
 
     def __init__(self, alpha=1.0, sparse_coef=1.0, fused_coef=1.0, rho=1.0, fit_intercept=True,
                  normalize=False, copy_X=True, max_iter=1000,
-                 tol=1e-4, diagonal=False):
+                 tol=1e-4, tridiagonal=False):
+        """Variables Description:
+        tridiagonal: Using Tridiagonal Matrix Algorithm (TDM)
+                     This mode can be used if X.T.dot(X) (not X) is a tridiagonal matrix.
+        """
         super().__init__(alpha=alpha, rho=rho, fit_intercept=fit_intercept,
                          normalize=normalize, copy_X=copy_X, max_iter=max_iter,
-                         tol=tol, tridiagonal=diagonal)
+                         tol=tol, tridiagonal=tridiagonal)
         self.sparse_coef = sparse_coef
         self.fused_coef = fused_coef
         self.alpha = alpha
-        self.diagonal = diagonal
 
     def generate_transform_matrix(self, n_features: int) -> np.ndarray:
         fused = np.eye(n_features) - np.eye(n_features, k=-1)
         fused[0, 0] = 0
         generated = self.sparse_coef * np.eye(n_features) + self.fused_coef * fused
-        if self.diagonal:
+        if self.tridiagonal:
             return sp.sparse.dia_matrix(generated)
         return generated
 
@@ -256,13 +263,16 @@ class FusedLassoADMM(GeneralizedLasso):
 class TrendFilteringADMM(GeneralizedLasso):
     def __init__(self, alpha=1.0, sparse_coef=1.0, trend_coef=1.0, rho=1.0, fit_intercept=True,
                  normalize=False, copy_X=True, max_iter=1000,
-                 tol=1e-4, diagonal=False):
+                 tol=1e-4, tridiagonal=False):
+        """Variables Description:
+        tridiagonal: Using Tridiagonal Matrix Algorithm (TDM)
+                     This mode can be used if X.T.dot(X) (not X) is a tridiagonal matrix.
+        """
         super().__init__(alpha=alpha, rho=rho, fit_intercept=fit_intercept,
                          normalize=normalize, copy_X=copy_X, max_iter=max_iter,
-                         tol=tol, tridiagonal=diagonal)
+                         tol=tol, tridiagonal=tridiagonal)
         self.sparse_coef = sparse_coef
         self.trend_coef = trend_coef
-        self.diagonal = diagonal
 
     def generate_transform_matrix(self, n_features: int) -> np.ndarray:
         trend = 2 * np.eye(n_features) - np.eye(n_features, k=-1) - np.eye(n_features, k=1)
@@ -270,6 +280,6 @@ class TrendFilteringADMM(GeneralizedLasso):
         trend[-1:, -1] = 1
 
         generated = self.sparse_coef * np.eye(n_features) + self.trend_coef * trend
-        if self.diagonal:
+        if self.tridiagonal:
             return sp.sparse.dia_matrix(generated)
         return generated
