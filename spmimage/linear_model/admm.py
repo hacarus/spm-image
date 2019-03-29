@@ -253,7 +253,6 @@ class FusedLassoADMM(GeneralizedLasso):
         self.sparse_coef = sparse_coef
         self.fused_coef = fused_coef
         self.alpha = alpha
-        self.tridiagonal = tridiagonal
 
     def generate_transform_matrix(self, n_features: int) -> np.ndarray:
         fused = np.eye(n_features) - np.eye(n_features, k=-1)
@@ -277,7 +276,6 @@ class TrendFilteringADMM(GeneralizedLasso):
                          tol=tol, tridiagonal=tridiagonal)
         self.sparse_coef = sparse_coef
         self.trend_coef = trend_coef
-        self.tridiagonal = tridiagonal
 
     def generate_transform_matrix(self, n_features: int) -> np.ndarray:
         trend = 2 * np.eye(n_features) - np.eye(n_features, k=-1) - np.eye(n_features, k=1)
