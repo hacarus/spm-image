@@ -1,11 +1,11 @@
 from logging import getLogger
 from abc import abstractmethod
+from typing import Tuple
 
 import numpy as np
 import scipy as sp
 
 from sklearn.utils import check_array, check_X_y
-from sklearn.utils.extmath import safe_sparse_dot
 from sklearn.base import RegressorMixin
 from sklearn.linear_model.base import LinearModel
 from sklearn.linear_model.coordinate_descent import _alpha_grid
@@ -14,17 +14,16 @@ from sklearn.externals.joblib import Parallel, delayed
 logger = getLogger(__name__)
 
 
-def _dia_to_tridiagonal(X):
+def _to_banded(X: np.ndarray, l_and_u: Tuple[int, int]) -> np.ndarray:
     n_samples = X.shape[0]
-    for index, offset in enumerate(X.offsets):
-        if offset == 0:
-            zero = index
-        if offset == -1:
-            minusone = index
-        if offset == 1:
-            one = index
-    band = X.data[[one, zero, minusone], :]
-    return band
+    l, u = l_and_u
+    ab = np.zeros((l + u + 1, n_samples))
+    for i in range(u):
+        ab[u - i - 1, u - i:] = np.diag(X, k = u - i)
+    ab[u, :] = np.diag(X)
+    for i in range(l):
+        ab[u + i + 1, :n_samples - i - 1] = np.diag(X, k = -l - i)
+    return ab
 
 
 def _soft_threshold(X: np.ndarray, thresh: float) -> np.ndarray:
@@ -49,9 +48,7 @@ def _update(X, y_k, D, coef_matrix, inv_Xy_k, inv_D, alpha, rho, max_iter, tol, 
     for t in range(max_iter):
         # Update
         if tridiagonal:
-            w_k = inv_Xy_k + \
-                  sp.linalg.solve_banded((1, 1), coef_matrix,
-                                         safe_sparse_dot(D.T, rho * z_k - h_k))
+            w_k = inv_Xy_k + sp.linalg.solve_banded((1, 1), coef_matrix, D.T.dot(rho * z_k - h_k))
         else:
             w_k = inv_Xy_k + inv_D.dot(z_k - h_k / rho)
         Dw_t = D.dot(w_k)
@@ -124,9 +121,8 @@ def _admm(
 
     # Calculate inverse matrix
     if tridiagonal:
-        coef_matrix = _dia_to_tridiagonal(sp.sparse.dia_matrix(safe_sparse_dot(X.T, X) / n_samples
-                                                               + rho * safe_sparse_dot(D.T, D)))  # banded form
-        inv_Xy = sp.linalg.solve_banded((1, 1), coef_matrix, safe_sparse_dot(X.T, y) / n_samples)
+        coef_matrix = _to_banded(X.T.dot(X) / n_samples + rho * D.T.dot(D), (1, 1))
+        inv_Xy = sp.linalg.solve_banded((1, 1), coef_matrix, X.T.dot(y) / n_samples)
         inv_D = D  # does not use this
     else:
         coef_matrix = X.T.dot(X) / n_samples + rho * D.T.dot(D)
@@ -191,8 +187,6 @@ With alpha=0, this algorithm does not converge well. You are advised to use the 
             y = y[:, np.newaxis]
 
         n_features = X.shape[1]
-        if self.tridiagonal:
-            X = sp.sparse.dia_matrix(X)
         D = self.generate_transform_matrix(n_features)
         self.coef_, self.n_iter_ = _admm(X, y, D, self.alpha, self.rho,
                                          self.tol, self.max_iter, self.tridiagonal)
@@ -222,10 +216,14 @@ class LassoADMM(GeneralizedLasso):
 
     def __init__(self, alpha=1.0, rho=1.0, fit_intercept=True,
                  normalize=False, copy_X=True, max_iter=1000,
-                 tol=1e-4):
+                 tol=1e-4, tridiagonal=False):
+        """Variables Description:
+        tridiagonal: Using Tridiagonal Matrix Algorithm (TDM)
+                     This mode can be used if X.T.dot(X) (not X) is a tridiagonal matrix.
+        """
         super().__init__(alpha=alpha, rho=rho, fit_intercept=fit_intercept,
                          normalize=normalize, copy_X=copy_X, max_iter=max_iter,
-                         tol=tol)
+                         tol=tol, tridiagonal=tridiagonal)
 
     def generate_transform_matrix(self, n_features: int) -> np.ndarray:
         return np.eye(n_features)
@@ -255,8 +253,6 @@ class FusedLassoADMM(GeneralizedLasso):
         fused = np.eye(n_features) - np.eye(n_features, k=-1)
         fused[0, 0] = 0
         generated = self.sparse_coef * np.eye(n_features) + self.fused_coef * fused
-        if self.tridiagonal:
-            return sp.sparse.dia_matrix(generated)
         return generated
 
 
@@ -280,6 +276,4 @@ class TrendFilteringADMM(GeneralizedLasso):
         trend[-1:, -1] = 1
 
         generated = self.sparse_coef * np.eye(n_features) + self.trend_coef * trend
-        if self.tridiagonal:
-            return sp.sparse.dia_matrix(generated)
         return generated
