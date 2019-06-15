@@ -1,7 +1,7 @@
 import unittest
 
 import numpy as np
-from spmimage.linear_model import LassoADMM, FusedLassoADMM, TrendFilteringADMM
+from spmimage.linear_model import LassoADMM, FusedLassoADMM, TrendFilteringADMM, QuadraticTrendFilteringADMM
 from spmimage.linear_model.admm import admm_path
 from numpy.testing import assert_array_almost_equal
 
@@ -188,7 +188,6 @@ class TestFusedLassoADMM(unittest.TestCase):
         actual = clf.predict(T)
         assert_array_almost_equal(clf.coef_, [0, 0, 0, 0], decimal=3)
         assert_array_almost_equal(actual, [3.73, 3.733, 3.736], decimal=3)
-        print(T, clf.coef_, actual)
 
         self.assertLess(clf.n_iter_, 20)
 
@@ -278,6 +277,38 @@ class TestTrendFilteringADMM(unittest.TestCase):
         clf = TrendFilteringADMM(alpha=1e5).fit(X, y)
         assert_array_almost_equal(clf.coef_, [0., 0., 0., 0., 0.], decimal=1)
 
+class TestQuadraticTrendFilteringADMM(unittest.TestCase):
+    def setUp(self):
+        np.random.seed(0)
+
+    def test_trend_marix(self):
+        D = np.array([[ 1., -1.,  0.,  0.,  0.],
+                      [-1.,  2., -1.,  0.,  0.],
+                      [ 1., -3.,  3., -1.,  0.],
+                      [ 0.,  1., -3.,  3., -1.],
+                      [ 0.,  0.,  0., -1.,  1.]])
+
+        clf = QuadraticTrendFilteringADMM(sparse_coef=1, trend_coef=0)
+        assert_array_almost_equal(np.eye(5), clf.generate_transform_matrix(5))
+
+        clf = QuadraticTrendFilteringADMM(sparse_coef=0, trend_coef=1)
+        assert_array_almost_equal(D, clf.generate_transform_matrix(5))
+
+        clf = QuadraticTrendFilteringADMM(sparse_coef=1, trend_coef=1)
+        assert_array_almost_equal(np.eye(5) + D, clf.generate_transform_matrix(5))
+
+    def test_trend_filtering(self):
+        X = np.random.normal(0.0, 1.0, (8, 5))
+        beta = np.array([0., 1., 2., 1., 0.])
+        y = X.dot(beta)
+
+        # small regularization parameter
+        clf = QuadraticTrendFilteringADMM(alpha=1e-8).fit(X, y)
+        assert_array_almost_equal(np.round(clf.coef_), [0,  1, 2, 1, 0])
+
+        # all coefs will be zero
+        clf = QuadraticTrendFilteringADMM(alpha=1e5).fit(X, y)
+        assert_array_almost_equal(clf.coef_, [0., 0., 0., 0., 0.], decimal=1)
 
 class TestAdmmPath(unittest.TestCase):
     def test_admm_path_alphas(self):
