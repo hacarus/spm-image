@@ -283,3 +283,34 @@ class TrendFilteringADMM(GeneralizedLasso):
         if self.tridiagonal:
             return sp.sparse.dia_matrix(generated)
         return generated
+
+
+class QuadraticTrendFilteringADMM(GeneralizedLasso):
+    def __init__(self, alpha=1.0, sparse_coef=1.0, trend_coef=1.0, rho=1.0, fit_intercept=True,
+                 normalize=False, copy_X=True, max_iter=1000,
+                 tol=1e-4, tridiagonal=False):
+        """Variables Description:
+        tridiagonal: Using Tridiagonal Matrix Algorithm (TDM)
+                     This mode can be used if X.T.dot(X) (not X) is a tridiagonal matrix.
+        """
+        super().__init__(alpha=alpha, rho=rho, fit_intercept=fit_intercept,
+                         normalize=normalize, copy_X=copy_X, max_iter=max_iter,
+                         tol=tol, tridiagonal=tridiagonal)
+        self.sparse_coef = sparse_coef
+        self.trend_coef = trend_coef
+
+    def generate_transform_matrix(self, n_features: int) -> np.ndarray:
+        trend = - np.eye(n_features, k=1) + 3 * np.eye(n_features) - 3 * np.eye(n_features, k=-1) + np.eye(n_features, k=-2)
+        trend[0, 0] = 1
+        trend[0, 1] = -1
+        trend[1, 0] = -1
+        trend[1, 1] = 2
+        trend[1, 2] = -1
+        trend[-1, -1] = 1
+        trend[-1, -2] = -1
+        trend[-1, -3] = 0
+
+        generated = self.sparse_coef * np.eye(n_features) + self.trend_coef * trend
+        if self.tridiagonal:
+            return sp.sparse.dia_matrix(generated)
+        return generated
