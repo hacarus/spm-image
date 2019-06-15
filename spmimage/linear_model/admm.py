@@ -267,16 +267,19 @@ class TrendFilteringADMM(FusedLassoADMM):
 class QuadraticTrendFilteringADMM(TrendFilteringADMM):
 
     def generate_transform_matrix(self, n_features: int) -> np.ndarray:
-        trend = - np.eye(n_features, k=1) \
-                + 3 * np.eye(n_features) \
-                - 3 * np.eye(n_features, k=-1) \
-                + np.eye(n_features, k=-2)
-        trend[0, 0] = 1
-        trend[0, 1] = -1
-        trend[1, 0] = -1
-        trend[1, 1] = 2
-        trend[1, 2] = -1
-        trend[-1, -1] = 1
-        trend[-1, -2] = -1
-        trend[-1, -3] = 0
+        if n_features < 3:
+            trend = np.zeros((n_features, n_features))
+        else:
+            trend = - np.eye(n_features, k=1) \
+                    + 3 * np.eye(n_features) \
+                    - 3 * np.eye(n_features, k=-1) \
+                    + np.eye(n_features, k=-2)
+            trend[0, 0] = 1
+            trend[0, 1] = -1
+            trend[1, 0] = -1
+            trend[1, 1] = 2
+            trend[1, 2] = -1
+            trend[-1, -1] = 1
+            trend[-1, -2] = -1
+            trend[-1, -3] = 0
         return self.merge_matrix(n_features, trend)

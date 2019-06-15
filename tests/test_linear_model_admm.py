@@ -249,7 +249,7 @@ class TestTrendFilteringADMM(unittest.TestCase):
     def setUp(self):
         np.random.seed(0)
 
-    def test_trend_marix(self):
+    def test_generate_transform_matrix(self):
         D = np.array([[1, -1, 0, 0, 0],
                       [-1, 2, -1, 0, 0],
                       [0, -1, 2, -1, 0],
@@ -286,7 +286,7 @@ class TestQuadraticTrendFilteringADMM(unittest.TestCase):
     def setUp(self):
         np.random.seed(0)
 
-    def test_trend_marix(self):
+    def test_generate_transform_matrix(self):
         D = np.array([[1., -1., 0., 0., 0.],
                       [-1., 2., -1., 0., 0.],
                       [1., -3., 3., -1., 0.],
@@ -301,6 +301,14 @@ class TestQuadraticTrendFilteringADMM(unittest.TestCase):
 
         clf = QuadraticTrendFilteringADMM(sparse_coef=1, trend_coef=1)
         assert_array_almost_equal(np.eye(5) + D, clf.generate_transform_matrix(5))
+
+        # boundary check
+        assert_array_almost_equal(np.eye(1), clf.generate_transform_matrix(1))
+        assert_array_almost_equal(np.eye(2), clf.generate_transform_matrix(2))
+        D = np.array([[2., -1., 0.],
+                      [-1., 3., -1.],
+                      [0, -1., 2.]])
+        assert_array_almost_equal(D, clf.generate_transform_matrix(3))
 
     def test_trend_filtering(self):
         X = np.random.normal(0.0, 1.0, (8, 5))
