@@ -197,15 +197,15 @@ class TestFusedLassoADMM(unittest.TestCase):
         y = X.dot(beta)
         T = np.array([[5., 6., 7., 8.], [9., 10., 11., 12.], [13., 14., 15., 16.]])  # test sample
 
-        # small fused_coef
-        clf = FusedLassoADMM(alpha=1e-8, fused_coef=1e-4).fit(X, y)
+        # small trend_coef
+        clf = FusedLassoADMM(alpha=1e-8, trend_coef=1e-4).fit(X, y)
         actual = clf.predict(T)
         assert_array_almost_equal(clf.coef_, [3.999e+00, 3.999e+00, -7.296e-03, 9.860e-04], decimal=3)
         assert_array_almost_equal(actual, [43.95, 75.916, 107.883], decimal=3)
         self.assertLess(clf.n_iter_, 100)
 
-        # large fused_coef
-        clf = FusedLassoADMM(alpha=1e-8, fused_coef=10).fit(X, y)
+        # large trend_coef
+        clf = FusedLassoADMM(alpha=1e-8, trend_coef=10).fit(X, y)
         actual = clf.predict(T)
         assert_array_almost_equal(clf.coef_, [3.916, 3.669, -0.107, 0.196], decimal=3)
         assert_array_almost_equal(actual, [42.499, 73.198, 103.896], decimal=3)
@@ -218,7 +218,7 @@ class TestFusedLassoADMM(unittest.TestCase):
         assert_array_almost_equal(actual, [43.931, 75.885, 107.839], decimal=3)
         self.assertLess(clf.n_iter_, 100)
 
-        # large fused_coef
+        # large trend_coef
         clf = FusedLassoADMM(alpha=1e-8, sparse_coef=10).fit(X, y)
         actual = clf.predict(T)
         assert_array_almost_equal(clf.coef_, [3.912, 3.826, -0.336, 0.124], decimal=3)
@@ -230,7 +230,7 @@ class TestFusedLassoADMM(unittest.TestCase):
         beta = np.array([4, 4, 0, 0])
         y = X.dot(beta)
         T = np.array([[5., 6., 7., 8.], [9., 10., 11., 12.], [13., 14., 15., 16.]])  # test sample
-        clf = FusedLassoADMM(fit_intercept=False, sparse_coef=1e-4, fused_coef=1e-4, tridiagonal=True).fit(X, y)
+        clf = FusedLassoADMM(fit_intercept=False, sparse_coef=1e-4, trend_coef=1e-4, tridiagonal=True).fit(X, y)
         actual = clf.predict(T)
         assert_array_almost_equal(clf.coef_, [4.00e+00, 4.00e+00, 6.40e-07, 7.04e-14], decimal=3)
         assert_array_almost_equal(actual, [44., 76., 108.], decimal=3)
@@ -239,8 +239,8 @@ class TestFusedLassoADMM(unittest.TestCase):
     def test_simple_lasso(self):
         X, y, X_test, y_test = build_dataset()
 
-        # check if FusedLasso generates same result of LassoAdmm when fused_coef is zero
-        clf = FusedLassoADMM(alpha=0.05, sparse_coef=1, fused_coef=0, tol=1e-8).fit(X, y)
+        # check if FusedLasso generates same result of LassoAdmm when trend_coef is zero
+        clf = FusedLassoADMM(alpha=0.05, sparse_coef=1, trend_coef=0, tol=1e-8).fit(X, y)
         self.assertGreater(clf.score(X_test, y_test), 0.99)
         self.assertLess(clf.n_iter_, 150)
 
@@ -250,7 +250,11 @@ class TestTrendFilteringADMM(unittest.TestCase):
         np.random.seed(0)
 
     def test_trend_marix(self):
-        D = np.array([[1, -1, 0, 0, 0], [-1, 2, -1, 0, 0], [0, -1, 2, -1, 0], [0, 0, -1, 2, -1], [0, 0, 0, -1, 1]])
+        D = np.array([[1, -1, 0, 0, 0],
+                      [-1, 2, -1, 0, 0],
+                      [0, -1, 2, -1, 0],
+                      [0, 0, -1, 2, -1],
+                      [0, 0, 0, -1, 1]])
         clf = TrendFilteringADMM(sparse_coef=1, trend_coef=0)
         assert_array_almost_equal(np.eye(5), clf.generate_transform_matrix(5))
 
@@ -267,26 +271,27 @@ class TestTrendFilteringADMM(unittest.TestCase):
 
         # small regularization parameter
         clf = TrendFilteringADMM(alpha=1e-8).fit(X, y)
-        assert_array_almost_equal(np.round(clf.coef_), [0,  10, 20, 10, 0])
+        assert_array_almost_equal(np.round(clf.coef_), [0, 10, 20, 10, 0])
 
         # default
         clf = TrendFilteringADMM(alpha=0.01).fit(X, y)
-        assert_array_almost_equal(clf.coef_, [0.031,  9.511, 20.224,  9.934, -0.127], decimal=3)
+        assert_array_almost_equal(clf.coef_, [0.031, 9.511, 20.224, 9.934, -0.127], decimal=3)
 
         # all coefs will be zero
         clf = TrendFilteringADMM(alpha=1e5).fit(X, y)
         assert_array_almost_equal(clf.coef_, [0., 0., 0., 0., 0.], decimal=1)
+
 
 class TestQuadraticTrendFilteringADMM(unittest.TestCase):
     def setUp(self):
         np.random.seed(0)
 
     def test_trend_marix(self):
-        D = np.array([[ 1., -1.,  0.,  0.,  0.],
-                      [-1.,  2., -1.,  0.,  0.],
-                      [ 1., -3.,  3., -1.,  0.],
-                      [ 0.,  1., -3.,  3., -1.],
-                      [ 0.,  0.,  0., -1.,  1.]])
+        D = np.array([[1., -1., 0., 0., 0.],
+                      [-1., 2., -1., 0., 0.],
+                      [1., -3., 3., -1., 0.],
+                      [0., 1., -3., 3., -1.],
+                      [0., 0., 0., -1., 1.]])
 
         clf = QuadraticTrendFilteringADMM(sparse_coef=1, trend_coef=0)
         assert_array_almost_equal(np.eye(5), clf.generate_transform_matrix(5))
@@ -304,11 +309,12 @@ class TestQuadraticTrendFilteringADMM(unittest.TestCase):
 
         # small regularization parameter
         clf = QuadraticTrendFilteringADMM(alpha=1e-8).fit(X, y)
-        assert_array_almost_equal(np.round(clf.coef_), [0,  1, 2, 1, 0])
+        assert_array_almost_equal(np.round(clf.coef_), [0, 1, 2, 1, 0])
 
         # all coefs will be zero
         clf = QuadraticTrendFilteringADMM(alpha=1e5).fit(X, y)
         assert_array_almost_equal(clf.coef_, [0., 0., 0., 0., 0.], decimal=1)
+
 
 class TestAdmmPath(unittest.TestCase):
     def test_admm_path_alphas(self):
