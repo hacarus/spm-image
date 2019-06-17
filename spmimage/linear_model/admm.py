@@ -19,10 +19,10 @@ def _to_banded(X: np.ndarray, l_and_u: Tuple[int, int]) -> np.ndarray:
     l, u = l_and_u
     ab = np.zeros((l + u + 1, n_samples))
     for i in range(u):
-        ab[u - i - 1, u - i:] = np.diag(X, k = u - i)
+        ab[u - i - 1, u - i:] = np.diag(X, k=u - i)
     ab[u, :] = np.diag(X)
     for i in range(l):
-        ab[u + i + 1, :n_samples - i - 1] = np.diag(X, k = -l - i)
+        ab[u + i + 1, :n_samples - i - 1] = np.diag(X, k=-l - i)
     return ab
 
 
@@ -214,17 +214,6 @@ class LassoADMM(GeneralizedLasso):
         (1 / (2 * n_samples)) * ||y - Xw||^2_2 + alpha * ||w||_1
     """
 
-    def __init__(self, alpha=1.0, rho=1.0, fit_intercept=True,
-                 normalize=False, copy_X=True, max_iter=1000,
-                 tol=1e-4, tridiagonal=False):
-        """Variables Description:
-        tridiagonal: Using Tridiagonal Matrix Algorithm (TDM)
-                     This mode can be used if X.T.dot(X) (not X) is a tridiagonal matrix.
-        """
-        super().__init__(alpha=alpha, rho=rho, fit_intercept=fit_intercept,
-                         normalize=normalize, copy_X=copy_X, max_iter=max_iter,
-                         tol=tol, tridiagonal=tridiagonal)
-
     def generate_transform_matrix(self, n_features: int) -> np.ndarray:
         return np.eye(n_features)
 
@@ -235,28 +224,6 @@ class FusedLassoADMM(GeneralizedLasso):
 1/(2 * n_samples) * ||y - Xw||^2_2 + \lambda_1 \sum_{j=1}^p |w_j| + \lambda_2 \sum_{j=2}^p |w_j - w_{j-1}|
     """
 
-    def __init__(self, alpha=1.0, sparse_coef=1.0, fused_coef=1.0, rho=1.0, fit_intercept=True,
-                 normalize=False, copy_X=True, max_iter=1000,
-                 tol=1e-4, tridiagonal=False):
-        """Variables Description:
-        tridiagonal: Using Tridiagonal Matrix Algorithm (TDM)
-                     This mode can be used if X.T.dot(X) (not X) is a tridiagonal matrix.
-        """
-        super().__init__(alpha=alpha, rho=rho, fit_intercept=fit_intercept,
-                         normalize=normalize, copy_X=copy_X, max_iter=max_iter,
-                         tol=tol, tridiagonal=tridiagonal)
-        self.sparse_coef = sparse_coef
-        self.fused_coef = fused_coef
-        self.alpha = alpha
-
-    def generate_transform_matrix(self, n_features: int) -> np.ndarray:
-        fused = np.eye(n_features) - np.eye(n_features, k=-1)
-        fused[0, 0] = 0
-        generated = self.sparse_coef * np.eye(n_features) + self.fused_coef * fused
-        return generated
-
-
-class TrendFilteringADMM(GeneralizedLasso):
     def __init__(self, alpha=1.0, sparse_coef=1.0, trend_coef=1.0, rho=1.0, fit_intercept=True,
                  normalize=False, copy_X=True, max_iter=1000,
                  tol=1e-4, tridiagonal=False):
@@ -271,9 +238,42 @@ class TrendFilteringADMM(GeneralizedLasso):
         self.trend_coef = trend_coef
 
     def generate_transform_matrix(self, n_features: int) -> np.ndarray:
+        fused = np.eye(n_features) - np.eye(n_features, k=-1)
+        fused[0, 0] = 0
+        return self.merge_matrix(n_features, fused)
+
+    def merge_matrix(self, n_features: int, trend_matrix: np.ndarray) -> np.ndarray:
+        generated = self.sparse_coef * np.eye(n_features) + self.trend_coef * trend_matrix
+        if self.tridiagonal:
+            return sp.sparse.dia_matrix(generated)
+        return generated
+
+
+class TrendFilteringADMM(FusedLassoADMM):
+
+    def generate_transform_matrix(self, n_features: int) -> np.ndarray:
         trend = 2 * np.eye(n_features) - np.eye(n_features, k=-1) - np.eye(n_features, k=1)
         trend[0, 0] = 1
         trend[-1:, -1] = 1
+        return self.merge_matrix(n_features, trend)
 
-        generated = self.sparse_coef * np.eye(n_features) + self.trend_coef * trend
-        return generated
+
+class QuadraticTrendFilteringADMM(TrendFilteringADMM):
+
+    def generate_transform_matrix(self, n_features: int) -> np.ndarray:
+        if n_features < 3:
+            trend = np.zeros((n_features, n_features))
+        else:
+            trend = - np.eye(n_features, k=1) \
+                    + 3 * np.eye(n_features) \
+                    - 3 * np.eye(n_features, k=-1) \
+                    + np.eye(n_features, k=-2)
+            trend[0, 0] = 1
+            trend[0, 1] = -1
+            trend[1, 0] = -1
+            trend[1, 1] = 2
+            trend[1, 2] = -1
+            trend[-1, -1] = 1
+            trend[-1, -2] = -1
+            trend[-1, -3] = 0
+        return self.merge_matrix(n_features, trend)
