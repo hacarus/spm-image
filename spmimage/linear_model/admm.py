@@ -1,12 +1,15 @@
 from logging import getLogger
 from abc import abstractmethod
+from typing import Tuple
 
 import numpy as np
+import scipy as sp
 
 from sklearn.utils import check_array, check_X_y
 from sklearn.base import RegressorMixin
 from sklearn.linear_model.base import LinearModel
 from sklearn.linear_model.coordinate_descent import _alpha_grid
+from sklearn.externals.joblib import Parallel, delayed
 
 logger = getLogger(__name__)
 
@@ -18,6 +21,33 @@ def _soft_threshold(X: np.ndarray, thresh: float) -> np.ndarray:
 def _cost_function(X, y, w, z, alpha):
     n_samples = X.shape[0]
     return np.linalg.norm(y - X.dot(w)) / n_samples + alpha * np.sum(np.abs(z))
+
+
+def _update(X, y_k, D, coef_matrix, inv_Xy_k, inv_D, alpha, rho, max_iter, tol):
+    # Initialize ADMM parameters
+    n_samples = X.shape[0]
+
+    w_k = X.T.dot(y_k) / n_samples
+    z_k = D.dot(w_k)
+    h_k = np.zeros(w_k.shape)
+
+    cost = _cost_function(X, y_k, w_k, z_k, alpha)
+    threshold = alpha / rho
+    for t in range(max_iter):
+        # Update
+        w_k = inv_Xy_k + inv_D.dot(z_k - h_k / rho)
+        Dw_t = D.dot(w_k)
+        z_k = _soft_threshold(Dw_t + h_k / rho, threshold)
+        h_k += rho * (Dw_t - z_k)
+
+        # after cost
+        pre_cost = cost
+        cost = _cost_function(X, y_k, w_k, z_k, alpha)
+        gap = np.abs(cost - pre_cost)
+        if gap < tol:
+            break
+    # should return z_k as well since it's sparse by soft threshold ?!
+    return w_k, t
 
 
 def admm_path(X, y, Xy=None, alphas=None, eps=1e-3, n_alphas=100, rho=1.0, max_iter=1000, tol=1e-04):
@@ -49,7 +79,9 @@ def admm_path(X, y, Xy=None, alphas=None, eps=1e-3, n_alphas=100, rho=1.0, max_i
     return alphas, coefs, n_iters
 
 
-def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float, tol: float, max_iter: int):
+def _admm(
+        X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float,
+        rho: float, tol: float, max_iter: int):
     """Alternate Direction Multiplier Method(ADMM) for Generalized Lasso.
 
     Minimizes the objective function::
@@ -70,38 +102,27 @@ def _admm(X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float, rho: float,
     n_samples, n_features = X.shape
     n_targets = y.shape[1]
 
-    # Initialize ADMM parameters
-    w_t = X.T.dot(y) / n_samples
-    z_t = D.dot(w_t.copy())
-    h_t = np.zeros(w_t.shape)
+    w_t = np.empty((n_features, n_targets), dtype=X.dtype)
 
     # Calculate inverse matrix
-    inv_matrix = np.linalg.inv(X.T.dot(X) / n_samples + rho * D.T.dot(D))
-    inv_matrix_XTy = inv_matrix.dot(X.T).dot(y) / n_samples
-    inv_matrix_DT = inv_matrix.dot(rho * D.T)
-    threshold = alpha / rho
+    coef_matrix = X.T.dot(X) / n_samples + rho * D.T.dot(D)
+    inv_matrix = np.linalg.inv(coef_matrix)
+    inv_Xy = inv_matrix.dot(X.T).dot(y) / n_samples
+    inv_D = inv_matrix.dot(rho * D.T)
 
-    n_iter_ = []
     # Update ADMM parameters by columns
-    for k in range(n_targets):
-        # initial cost
-        cost = _cost_function(X, y[:, k], w_t[:, k], z_t[:, k], alpha)
-        for t in range(max_iter):
-            # Update
-            w_t[:, k] = inv_matrix_XTy[:, k] \
-                        + inv_matrix_DT.dot(z_t[:, k] - h_t[:, k] / rho)
-            Dw_t = D.dot(w_t[:, k])
-            z_t[:, k] = _soft_threshold(Dw_t + h_t[:, k] / rho, threshold)
-            h_t[:, k] += rho * (Dw_t - z_t[:, k])
+    n_iter_ = np.empty((n_targets,), dtype=int)
+    if n_targets == 1:
+        w_t, n_iter_[0] = _update(X, y, D, coef_matrix, inv_Xy, inv_D, alpha, rho, max_iter, tol)
+    else:
+        results = Parallel(n_jobs=-1, backend='threading')(
+            delayed(_update)(X, y[:, k], D, coef_matrix, inv_Xy[:, k], inv_D, alpha, rho, max_iter, tol)
+            for k in range(n_targets)
+        )
+        for k in range(n_targets):
+            w_t[:, k], n_iter_[k] = results[k]
 
-            # after cost
-            pre_cost = cost
-            cost = _cost_function(X, y[:, k], w_t[:, k], z_t[:, k], alpha)
-            gap = np.abs(cost - pre_cost)
-            if gap < tol:
-                break
-        n_iter_.append(t)
-    return np.squeeze(w_t), n_iter_
+    return np.squeeze(w_t.T), n_iter_.tolist()
 
 
 class GeneralizedLasso(LinearModel, RegressorMixin):
@@ -142,7 +163,8 @@ With alpha=0, this algorithm does not converge well. You are advised to use the 
 
         n_features = X.shape[1]
         D = self.generate_transform_matrix(n_features)
-        self.coef_, self.n_iter_ = _admm(X, y, D, self.alpha, self.rho, self.tol, self.max_iter)
+        self.coef_, self.n_iter_ = _admm(X, y, D, self.alpha, self.rho,
+                                         self.tol, self.max_iter)
 
         if y.shape[1] == 1:
             self.n_iter_ = self.n_iter_[0]
@@ -167,13 +189,6 @@ class LassoADMM(GeneralizedLasso):
         (1 / (2 * n_samples)) * ||y - Xw||^2_2 + alpha * ||w||_1
     """
 
-    def __init__(self, alpha=1.0, rho=1.0, fit_intercept=True,
-                 normalize=False, copy_X=True, max_iter=1000,
-                 tol=1e-4):
-        super().__init__(alpha=alpha, rho=rho, fit_intercept=fit_intercept,
-                         normalize=normalize, copy_X=copy_X, max_iter=max_iter,
-                         tol=tol)
-
     def generate_transform_matrix(self, n_features: int) -> np.ndarray:
         return np.eye(n_features)
 
@@ -184,16 +199,50 @@ class FusedLassoADMM(GeneralizedLasso):
 1/(2 * n_samples) * ||y - Xw||^2_2 + \lambda_1 \sum_{j=1}^p |w_j| + \lambda_2 \sum_{j=2}^p |w_j - w_{j-1}|
     """
 
-    def __init__(self, alpha=1.0, sparse_coef=1.0, fused_coef=1.0, rho=1.0, fit_intercept=True,
+    def __init__(self, alpha=1.0, sparse_coef=1.0, trend_coef=1.0, rho=1.0, fit_intercept=True,
                  normalize=False, copy_X=True, max_iter=1000,
                  tol=1e-4):
         super().__init__(alpha=alpha, rho=rho, fit_intercept=fit_intercept,
                          normalize=normalize, copy_X=copy_X, max_iter=max_iter,
                          tol=tol)
         self.sparse_coef = sparse_coef
-        self.fused_coef = fused_coef
+        self.trend_coef = trend_coef
 
     def generate_transform_matrix(self, n_features: int) -> np.ndarray:
         fused = np.eye(n_features) - np.eye(n_features, k=-1)
         fused[0, 0] = 0
-        return self.sparse_coef * np.eye(n_features) + self.fused_coef * fused
+        return self.merge_matrix(n_features, fused)
+
+    def merge_matrix(self, n_features: int, trend_matrix: np.ndarray) -> np.ndarray:
+        generated = self.sparse_coef * np.eye(n_features) + self.trend_coef * trend_matrix
+        return generated
+
+
+class TrendFilteringADMM(FusedLassoADMM):
+
+    def generate_transform_matrix(self, n_features: int) -> np.ndarray:
+        trend = 2 * np.eye(n_features) - np.eye(n_features, k=-1) - np.eye(n_features, k=1)
+        trend[0, 0] = 1
+        trend[-1:, -1] = 1
+        return self.merge_matrix(n_features, trend)
+
+
+class QuadraticTrendFilteringADMM(TrendFilteringADMM):
+
+    def generate_transform_matrix(self, n_features: int) -> np.ndarray:
+        if n_features < 3:
+            trend = np.zeros((n_features, n_features))
+        else:
+            trend = - np.eye(n_features, k=1) \
+                    + 3 * np.eye(n_features) \
+                    - 3 * np.eye(n_features, k=-1) \
+                    + np.eye(n_features, k=-2)
+            trend[0, 0] = 1
+            trend[0, 1] = -1
+            trend[1, 0] = -1
+            trend[1, 1] = 2
+            trend[1, 2] = -1
+            trend[-1, -1] = 1
+            trend[-1, -2] = -1
+            trend[-1, -3] = 0
+        return self.merge_matrix(n_features, trend)
