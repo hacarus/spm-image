@@ -14,18 +14,6 @@ from sklearn.externals.joblib import Parallel, delayed
 logger = getLogger(__name__)
 
 
-def _to_banded(X: np.ndarray, l_and_u: Tuple[int, int]) -> np.ndarray:
-    n_samples = X.shape[0]
-    l, u = l_and_u
-    ab = np.zeros((l + u + 1, n_samples))
-    for i in range(u):
-        ab[u - i - 1, u - i:] = np.diag(X, k=u - i)
-    ab[u, :] = np.diag(X)
-    for i in range(l):
-        ab[u + i + 1, :n_samples - i - 1] = np.diag(X, k=-l - i)
-    return ab
-
-
 def _soft_threshold(X: np.ndarray, thresh: float) -> np.ndarray:
     return np.where(np.abs(X) <= thresh, 0, X - thresh * np.sign(X))
 
@@ -35,7 +23,7 @@ def _cost_function(X, y, w, z, alpha):
     return np.linalg.norm(y - X.dot(w)) / n_samples + alpha * np.sum(np.abs(z))
 
 
-def _update(X, y_k, D, coef_matrix, inv_Xy_k, inv_D, alpha, rho, max_iter, tol, tridiagonal):
+def _update(X, y_k, D, coef_matrix, inv_Xy_k, inv_D, alpha, rho, max_iter, tol):
     # Initialize ADMM parameters
     n_samples = X.shape[0]
 
@@ -47,10 +35,7 @@ def _update(X, y_k, D, coef_matrix, inv_Xy_k, inv_D, alpha, rho, max_iter, tol, 
     threshold = alpha / rho
     for t in range(max_iter):
         # Update
-        if tridiagonal:
-            w_k = inv_Xy_k + sp.linalg.solve_banded((1, 1), coef_matrix, D.T.dot(rho * z_k - h_k))
-        else:
-            w_k = inv_Xy_k + inv_D.dot(z_k - h_k / rho)
+        w_k = inv_Xy_k + inv_D.dot(z_k - h_k / rho)
         Dw_t = D.dot(w_k)
         z_k = _soft_threshold(Dw_t + h_k / rho, threshold)
         h_k += rho * (Dw_t - z_k)
@@ -96,7 +81,7 @@ def admm_path(X, y, Xy=None, alphas=None, eps=1e-3, n_alphas=100, rho=1.0, max_i
 
 def _admm(
         X: np.ndarray, y: np.ndarray, D: np.ndarray, alpha: float,
-        rho: float, tol: float, max_iter: int, tridiagonal: bool):
+        rho: float, tol: float, max_iter: int):
     """Alternate Direction Multiplier Method(ADMM) for Generalized Lasso.
 
     Minimizes the objective function::
@@ -120,23 +105,18 @@ def _admm(
     w_t = np.empty((n_features, n_targets), dtype=X.dtype)
 
     # Calculate inverse matrix
-    if tridiagonal:
-        coef_matrix = _to_banded(X.T.dot(X) / n_samples + rho * D.T.dot(D), (1, 1))
-        inv_Xy = sp.linalg.solve_banded((1, 1), coef_matrix, X.T.dot(y) / n_samples)
-        inv_D = D  # does not use this
-    else:
-        coef_matrix = X.T.dot(X) / n_samples + rho * D.T.dot(D)
-        inv_matrix = np.linalg.inv(coef_matrix)
-        inv_Xy = inv_matrix.dot(X.T).dot(y) / n_samples
-        inv_D = inv_matrix.dot(rho * D.T)
+    coef_matrix = X.T.dot(X) / n_samples + rho * D.T.dot(D)
+    inv_matrix = np.linalg.inv(coef_matrix)
+    inv_Xy = inv_matrix.dot(X.T).dot(y) / n_samples
+    inv_D = inv_matrix.dot(rho * D.T)
 
     # Update ADMM parameters by columns
     n_iter_ = np.empty((n_targets,), dtype=int)
     if n_targets == 1:
-        w_t, n_iter_[0] = _update(X, y, D, coef_matrix, inv_Xy, inv_D, alpha, rho, max_iter, tol, tridiagonal)
+        w_t, n_iter_[0] = _update(X, y, D, coef_matrix, inv_Xy, inv_D, alpha, rho, max_iter, tol)
     else:
         results = Parallel(n_jobs=-1, backend='threading')(
-            delayed(_update)(X, y[:, k], D, coef_matrix, inv_Xy[:, k], inv_D, alpha, rho, max_iter, tol, tridiagonal)
+            delayed(_update)(X, y[:, k], D, coef_matrix, inv_Xy[:, k], inv_D, alpha, rho, max_iter, tol)
             for k in range(n_targets)
         )
         for k in range(n_targets):
@@ -151,11 +131,7 @@ class GeneralizedLasso(LinearModel, RegressorMixin):
 
     def __init__(self, alpha=1.0, rho=1.0, fit_intercept=True,
                  normalize=False, copy_X=True, max_iter=1000,
-                 tol=1e-4, tridiagonal=False):
-        """Variables Description:
-        tridiagonal: Using Tridiagonal Matrix Algorithm (TDM)
-                     This mode can be used if both X.T.dot(X) and D.T.dot(D) (not X or D) are tridiagonal matrices.
-        """
+                 tol=1e-4):
         self.alpha = alpha
         self.rho = rho
         self.fit_intercept = fit_intercept
@@ -163,7 +139,6 @@ class GeneralizedLasso(LinearModel, RegressorMixin):
         self.copy_X = copy_X
         self.max_iter = max_iter
         self.tol = tol
-        self.tridiagonal = tridiagonal
 
     def fit(self, X, y, check_input=False):
         if self.alpha == 0:
@@ -189,7 +164,7 @@ With alpha=0, this algorithm does not converge well. You are advised to use the 
         n_features = X.shape[1]
         D = self.generate_transform_matrix(n_features)
         self.coef_, self.n_iter_ = _admm(X, y, D, self.alpha, self.rho,
-                                         self.tol, self.max_iter, self.tridiagonal)
+                                         self.tol, self.max_iter)
 
         if y.shape[1] == 1:
             self.n_iter_ = self.n_iter_[0]
@@ -226,14 +201,10 @@ class FusedLassoADMM(GeneralizedLasso):
 
     def __init__(self, alpha=1.0, sparse_coef=1.0, trend_coef=1.0, rho=1.0, fit_intercept=True,
                  normalize=False, copy_X=True, max_iter=1000,
-                 tol=1e-4, tridiagonal=False):
-        """Variables Description:
-        tridiagonal: Using Tridiagonal Matrix Algorithm (TDM)
-                     This mode can be used if X.T.dot(X) (not X) is a tridiagonal matrix.
-        """
+                 tol=1e-4):
         super().__init__(alpha=alpha, rho=rho, fit_intercept=fit_intercept,
                          normalize=normalize, copy_X=copy_X, max_iter=max_iter,
-                         tol=tol, tridiagonal=tridiagonal)
+                         tol=tol)
         self.sparse_coef = sparse_coef
         self.trend_coef = trend_coef
 
@@ -244,8 +215,6 @@ class FusedLassoADMM(GeneralizedLasso):
 
     def merge_matrix(self, n_features: int, trend_matrix: np.ndarray) -> np.ndarray:
         generated = self.sparse_coef * np.eye(n_features) + self.trend_coef * trend_matrix
-        if self.tridiagonal:
-            return sp.sparse.dia_matrix(generated)
         return generated
 
 
