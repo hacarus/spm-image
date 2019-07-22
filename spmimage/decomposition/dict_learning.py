@@ -1,5 +1,6 @@
 import numpy as np
 import sklearn
+from sklearn.utils import check_array
 from ..linear_model import matching_pursuit
 
 
@@ -49,8 +50,7 @@ def sparse_encode_with_mask(X, dictionary, mask, **kwargs):
 
 def sparse_encode(X, dictionary, gram=None, cov=None, algorithm='lasso_lars',
                   n_nonzero_coefs=None, alpha=None, copy_cov=True, init=None,
-                  max_iter=1000, n_jobs=None, check_input=True, verbose=0,
-                  positive=False):
+                  max_iter=1000, n_jobs=1, check_input=True, verbose=0):
     """Sparse coding
     Each row of the result is the solution to a sparse coding problem.
     The goal is to find a sparse array `code` such that::
@@ -106,9 +106,6 @@ def sparse_encode(X, dictionary, gram=None, cov=None, algorithm='lasso_lars',
             If False, the input arrays X and dictionary will not be checked.
         verbose : int, optional
             Controls the verbosity; the higher, the more messages. Defaults to 0.
-        positive : boolean, optional
-            Whether to enforce positivity when finding the encoding.
-            .. versionadded:: 0.20
     Returns
     -------
         code : array of shape (n_samples, n_components)
@@ -117,7 +114,7 @@ def sparse_encode(X, dictionary, gram=None, cov=None, algorithm='lasso_lars',
     if algorithm != 'mp':
         return sklearn.decomposition.sparse_encode(
             X, dictionary, gram, cov, algorithm, n_nonzero_coefs, alpha, copy_cov,
-            init, max_iter, n_jobs, check_input, verbose, positive)
+            init, max_iter, n_jobs, check_input, verbose)
     elif check_input:
         dictionary = check_array(dictionary)
         X = check_array(X)
@@ -125,8 +122,8 @@ def sparse_encode(X, dictionary, gram=None, cov=None, algorithm='lasso_lars',
     n_samples, n_features = X.shape
     n_components = dictionary.shape[0]
 
-    if effective_n_jobs(n_jobs) == 1:
-        code = matching_pursuit(dictionary=dictionary, signal=X)
+    if n_jobs == 1:
+        code = matching_pursuit(dictionary=dictionary, signal=X, tol=1e-2)
         return code
 
     # Enter parallel code block
