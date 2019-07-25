@@ -1,8 +1,8 @@
 import numpy as np
 import sklearn
-from sklearn.externals.joblib import Parallel, delayed, cpu_count
+from sklearn.externals.joblib import Parallel, delayed, effective_n_jobs
 from sklearn.utils import (check_array, check_random_state, gen_even_slices,
-                     gen_batches, _get_n_jobs)
+                     gen_batches)
 from ..linear_model import matching_pursuit
 
 
@@ -134,7 +134,7 @@ def sparse_encode(X, dictionary, gram=None, cov=None, algorithm='lasso_lars',
 
     # Enter parallel code block
     code = np.empty((n_samples, n_components))
-    slices = list(gen_even_slices(n_samples, _get_n_jobs(n_jobs)))
+    slices = list(gen_even_slices(n_samples, effective_n_jobs(n_jobs)))
 
     code_views = Parallel(n_jobs=n_jobs, verbose=verbose)(
         delayed(matching_pursuit)(dictionary=dictionary, signal=X[this_slice], n_nonzero_coefs=n_nonzero_coefs) 
