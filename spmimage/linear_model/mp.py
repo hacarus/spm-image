@@ -4,11 +4,12 @@
 import numpy as np
 from sklearn.utils import check_array
 
-def matching_pursuit(dictionary, signal, copy_dictionary=True, copy_signal=True, tol=None):
+def matching_pursuit(dictionary, signal, n_nonzero_coefs=None, copy_dictionary=True, copy_signal=True, tol=None):
     """Matching Pursuit (MP)
     
     Solves n_targets Matching Pursuit problems.
-
+    The goal is to find a sparse array `coefs` such that::
+        signal ~= coefs * dictionary
     Parameters
     ----------
     dictionary : array, shape (n_components, n_features)
@@ -16,6 +17,9 @@ def matching_pursuit(dictionary, signal, copy_dictionary=True, copy_signal=True,
 
     signal : array, shape (n_samples, n_features)
         Input targets.
+
+    n_nonzero_coefs : int
+        Targeted number of non-zero elements
 
     copy_X : bool, optional
         Whether the input data must be copied by the algorithm. A false
@@ -44,12 +48,12 @@ def matching_pursuit(dictionary, signal, copy_dictionary=True, copy_signal=True,
     while(True):
         inners = dictionary.dot(signal.T)
         max_ids = np.argmax(np.abs(inners), axis=0)
-        for col, max_id in enumerate(max_ids):
-            coefs[col, max_id] = inners[max_id, col]
-            signal[col] -= inners[max_id, col] * dictionary[max_id]
+        for i, max_id in enumerate(max_ids):
+            coefs[i, max_id] += inners[max_id, i]
+            signal[i] -= inners[max_id, i] * dictionary[max_id]
         n_active += 1
         if tol is not None and np.linalg.norm(signal) <= tol:
                 break
-        if n_active == n_features:
+        if n_active == n_features or n_active == n_nonzero_coefs:
             break
     return coefs

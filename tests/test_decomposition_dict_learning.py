@@ -1,5 +1,6 @@
 import unittest
 
+from sklearn.preprocessing import normalize
 from sklearn.decomposition import sparse_encode
 from spmimage.decomposition import sparse_encode_with_mask
 import spmimage
@@ -51,7 +52,7 @@ class TestDictLearning(unittest.TestCase):
         n_components = 10
 
         A0, X = generate_dictionary_and_samples(n_samples, n_features, n_components, k0)
-        mask = np.ones(X.shape)
+        A0 = normalize(A0)
 
         W1 = sparse_encode(X, A0, algorithm='omp', n_nonzero_coefs=k0)
         W2 = spmimage.decomposition.sparse_encode(X, A0, algorithm='omp', n_nonzero_coefs=k0)
@@ -66,12 +67,29 @@ class TestDictLearning(unittest.TestCase):
         n_components = 10
 
         A0, X = generate_dictionary_and_samples(n_samples, n_features, n_components, k0)
-        mask = np.ones(X.shape)
+        A0 = normalize(A0)
 
         W = spmimage.decomposition.sparse_encode(X, A0, algorithm='mp', n_nonzero_coefs=k0)
 
-        # check if W1 and W2 is almost same
-        self.assertTrue(abs(np.linalg.norm(X - W.dot(A0), 'fro') < 1e-8))
+        # check error of learning
+        # print(np.linalg.norm(X - W.dot(A0), 'fro'))
+        self.assertTrue(np.linalg.norm(X - W.dot(A0), 'fro') < np.linalg.norm(X))
+
+    def test_parallel_sparse_encode_mp(self):
+        k0 = 3
+        n_samples = 64
+        n_features = 32
+        n_components = 10
+
+        A0, X = generate_dictionary_and_samples(n_samples, n_features, n_components, k0)
+        A0 = normalize(A0)
+
+        W = spmimage.decomposition.sparse_encode(X, A0, algorithm='mp', n_nonzero_coefs=k0, n_jobs=2)
+
+        # check error of learning
+        # print(np.linalg.norm(X - W.dot(A0), 'fro'))
+        self.assertTrue(np.linalg.norm(X - W.dot(A0), 'fro') < np.linalg.norm(X))
+
 
 if __name__ == '__main__':
     unittest.main()

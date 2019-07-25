@@ -1,6 +1,8 @@
 import numpy as np
 import sklearn
-from sklearn.utils import check_array
+from sklearn.externals.joblib import Parallel, delayed, cpu_count
+from sklearn.utils import (check_array, check_random_state, gen_even_slices,
+                     gen_batches, _get_n_jobs)
 from ..linear_model import matching_pursuit
 
 
@@ -63,12 +65,12 @@ def sparse_encode(X, dictionary, gram=None, cov=None, algorithm='lasso_lars',
         dictionary : array of shape (n_components, n_features)
             The dictionary matrix against which to solve the sparse coding of
             the data. Some of the algorithms assume normalized rows for meaningful
-            output.
+            output (particularly for 'omp' and 'mp').
         gram : array, shape=(n_components, n_components)
             Precomputed Gram matrix, dictionary * dictionary'
         cov : array, shape=(n_components, n_samples)
             Precomputed covariance, dictionary' * X
-        algorithm : {'lasso_lars', 'lasso_cd', 'lars', 'omp', 'threshold'}
+        algorithm : {'lasso_lars', 'lasso_cd', 'lars', 'omp', 'threshold', 'mp'}
             lars: uses the least angle regression method (linear_model.lars_path)
             lasso_lars: uses Lars to compute the Lasso solution
             lasso_cd: uses the coordinate descent method to compute the
@@ -77,6 +79,7 @@ def sparse_encode(X, dictionary, gram=None, cov=None, algorithm='lasso_lars',
             omp: uses orthogonal matching pursuit to estimate the sparse solution
             threshold: squashes to zero all coefficients less than alpha from
             the projection dictionary * X'
+            mp: uses matching pursuit to estimate the sparse solution
         n_nonzero_coefs : int, 0.1 * n_features by default
             Number of nonzero coefficients to target in each column of the
             solution. This is only used by `algorithm='lars'` and `algorithm='omp'`
@@ -122,16 +125,19 @@ def sparse_encode(X, dictionary, gram=None, cov=None, algorithm='lasso_lars',
     n_samples, n_features = X.shape
     n_components = dictionary.shape[0]
 
+    if n_nonzero_coefs is None:
+        n_nonzero_coefs = min(max(n_features / 10, 1), n_components)
+
     if n_jobs == 1:
-        code = matching_pursuit(dictionary=dictionary, signal=X, tol=1e-2)
+        code = matching_pursuit(dictionary=dictionary, signal=X, n_nonzero_coefs=n_nonzero_coefs)
         return code
 
     # Enter parallel code block
     code = np.empty((n_samples, n_components))
-    slices = list(gen_even_slices(n_samples, effective_n_jobs(n_jobs)))
+    slices = list(gen_even_slices(n_samples, _get_n_jobs(n_jobs)))
 
     code_views = Parallel(n_jobs=n_jobs, verbose=verbose)(
-        delayed(matching_pursuit)(dictionary=dictionary, signal=X[this_slice]) 
+        delayed(matching_pursuit)(dictionary=dictionary, signal=X[this_slice], n_nonzero_coefs=n_nonzero_coefs) 
         for this_slice in slices)
     for this_slice, this_view in zip(slices, code_views):
         code[this_slice] = this_view
