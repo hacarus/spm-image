@@ -43,7 +43,7 @@ class TestDictLearning(unittest.TestCase):
 
         # check error of learning
         # print(np.linalg.norm(mask*(X-W.dot(A0)), 'fro'))
-        self.assertTrue(np.linalg.norm(mask * (X - W.dot(A0)), 'fro') < 50)
+        self.assertTrue(np.linalg.norm(mask * (X - W.dot(A0)), 'fro') < np.linalg.norm(mask * X, 'fro'))
 
     def test_sparse_encode(self):
         k0 = 3
@@ -52,7 +52,6 @@ class TestDictLearning(unittest.TestCase):
         n_components = 10
 
         A0, X = generate_dictionary_and_samples(n_samples, n_features, n_components, k0)
-        A0 = normalize(A0)
 
         W1 = sparse_encode(X, A0, algorithm='omp', n_nonzero_coefs=k0)
         W2 = spmimage.decomposition.sparse_encode(X, A0, algorithm='omp', n_nonzero_coefs=k0)
@@ -67,7 +66,6 @@ class TestDictLearning(unittest.TestCase):
         n_components = 10
 
         A0, X = generate_dictionary_and_samples(n_samples, n_features, n_components, k0)
-        A0 = normalize(A0)
 
         W = spmimage.decomposition.sparse_encode(X, A0, algorithm='mp', n_nonzero_coefs=k0)
 
@@ -82,7 +80,6 @@ class TestDictLearning(unittest.TestCase):
         n_components = 10
 
         A0, X = generate_dictionary_and_samples(n_samples, n_features, n_components, k0)
-        A0 = normalize(A0)
 
         W = spmimage.decomposition.sparse_encode(X, A0, algorithm='mp', n_nonzero_coefs=k0, n_jobs=2)
 
