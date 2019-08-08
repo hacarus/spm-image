@@ -45,7 +45,7 @@ def sparse_encode_with_mask(X, dictionary, mask, **kwargs):
     """
     code = np.zeros((X.shape[0], dictionary.shape[0]))
     for idx in range(X.shape[0]):
-        code[idx, :] = sklearn.decomposition.sparse_encode(
+        code[idx, :] = sparse_encode(
             X[idx, :][mask[idx, :] == 1].reshape(1, -1),
             dictionary[:, mask[idx, :] == 1], **kwargs)
     return code
