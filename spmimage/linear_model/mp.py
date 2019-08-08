@@ -3,6 +3,7 @@
 
 import numpy as np
 from sklearn.utils import check_array
+from sklearn.preprocessing import normalize
 
 def matching_pursuit(dictionary, signal, n_nonzero_coefs=None, copy_dictionary=True, copy_signal=True, tol=None):
     """Matching Pursuit (MP)
@@ -33,6 +34,9 @@ def matching_pursuit(dictionary, signal, n_nonzero_coefs=None, copy_dictionary=T
     tol : float
         Maximum norm of the residual.
     """
+    normalized = normalize(dictionary)
+    if abs(np.linalg.norm(normalized - dictionary, 'fro')) > len(dictionary) * 1e-8:
+        raise ValueError("All columns of the dictionary must have unit norm.")
     if tol is not None and tol < 0:
         raise ValueError("Epsilon cannot be negative")
     dictionary = check_array(dictionary, order='F', copy=copy_dictionary)
