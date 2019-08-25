@@ -1,12 +1,15 @@
 import unittest
 
 import numpy as np
-from spmimage.linear_model.ppd import LassoPPD
 from numpy.testing import assert_array_almost_equal
 
 
 class TestLassoPPD(unittest.TestCase):
     def setUp(self) -> None:
+        # NOTE: we should import LassoPPD here, otherwise `test_experimental.py` will fail.
+        from spmimage.experimental import enable_ppd
+        from spmimage.linear_model import LassoPPD
+
         self.lasso = LassoPPD(alpha=1, max_iter=10, params=[1])
         self.fused = LassoPPD(alpha=1, max_iter=10, params=[1, -1])
         self.trend = LassoPPD(alpha=1, max_iter=10, params=[1, -2, 1])
@@ -31,3 +34,7 @@ class TestLassoPPD(unittest.TestCase):
         self.lasso.fit(None, y)
         self.fused.fit(None, y)
         self.trend.fit(None, y)
+
+
+if __name__ == '__main__':
+    unittest.main()
