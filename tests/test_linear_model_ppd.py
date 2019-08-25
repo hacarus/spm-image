@@ -8,8 +8,8 @@ from numpy.testing import assert_array_almost_equal
 class TestLassoPPD(unittest.TestCase):
     def setUp(self) -> None:
         self.lasso = LassoPPD(alpha=1, max_iter=10, params=[1])
-        self.fused = LassoPPD(alpha=1, max_iter=10, params=[1,-1])
-        self.trend = LassoPPD(alpha=1, max_iter=10, params=[1,-2, 1])
+        self.fused = LassoPPD(alpha=1, max_iter=10, params=[1, -1])
+        self.trend = LassoPPD(alpha=1, max_iter=10, params=[1, -2, 1])
 
     def test_Du(self):
         u = np.ones(10)
@@ -24,7 +24,6 @@ class TestLassoPPD(unittest.TestCase):
         assert_array_almost_equal(v, self.lasso._DTv(v))
         assert_array_almost_equal(v1, self.fused._DTv(v))
         assert_array_almost_equal(v2, self.trend._DTv(v))
-
 
     def test_lasso_admm_zero(self):
         # Check that lasso by admm can handle zero data without crashing

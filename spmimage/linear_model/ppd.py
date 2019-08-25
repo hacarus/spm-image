@@ -15,6 +15,7 @@ class PreconditionedPrimalDual(LinearModel, RegressorMixin, ABC):
     """
     Abstract class for Preconditioned Primal Dual algorithm
     """
+
     def __init__(self,
                  alpha: float = 1.0,
                  max_iter: int = 1000):
@@ -62,13 +63,12 @@ class PreconditionedPrimalDual(LinearModel, RegressorMixin, ABC):
         """
         raise NotImplementedError()
 
-
     @abstractmethod
     def _init_dual(self, y, sigma):
         """
         define dual vector
         """
-        raise  NotImplementedError()
+        raise NotImplementedError()
 
     def fit(self, X, y, check_input=False):
         """
@@ -89,7 +89,8 @@ class PreconditionedPrimalDual(LinearModel, RegressorMixin, ABC):
             for method chain
         """
         if self.alpha == 0:
-            logger.warning("""With alpha=0, this algorithm does not converge well. You are advised to use the LinearRegression estimator""")
+            logger.warning(
+                """With alpha=0, this algorithm does not converge well. You are advised to use the LinearRegression estimator""")
             raise ValueError()
 
         self.shape = y.shape
@@ -174,7 +175,7 @@ class LassoPPD(PreconditionedPrimalDual):
             x[i:len(v) + i] += k * v
         return x
 
-    def _step_size(self) -> Tuple[np.ndarray , np.ndarray]:
+    def _step_size(self) -> Tuple[np.ndarray, np.ndarray]:
         """
         define tau and sigma
 
