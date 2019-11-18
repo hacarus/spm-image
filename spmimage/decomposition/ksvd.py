@@ -68,7 +68,8 @@ def _ksvd(Y: np.ndarray, n_components: int, n_nonzero_coefs: int, max_iter: int,
             W = sparse_encode(Y, H, algorithm='omp', n_nonzero_coefs=n_nonzero_coefs, n_jobs=n_jobs)
         else:
             W = sparse_encode_with_mask(Y, H, mask, algorithm='omp', n_nonzero_coefs=n_nonzero_coefs, n_jobs=n_jobs)
-
+            Y[mask == 0] = W.dot(H)[mask == 0]
+            
         for j in range(n_components):
             x = W[:, j] != 0
             if np.sum(x) == 0:
