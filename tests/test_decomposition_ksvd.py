@@ -122,7 +122,7 @@ class TestKSVD(unittest.TestCase):
         # check error of learning
         code = model.transform(X)
         err = np.linalg.norm(X - code.dot(model.components_), 'fro')
-        self.assertTrue(err <= model.error_[-1])
+        self.assertTrue(err <= model.error_[0])
         self.assertTrue(model.n_iter_ <= max_iter)
 
     def test_transform_with_mask(self):
@@ -144,7 +144,7 @@ class TestKSVD(unittest.TestCase):
         # check error of learning
         code = model.transform(X)
         err = np.linalg.norm(mask * (X - code.dot(model.components_)), 'fro')
-        self.assertTrue(err <= model.error_[-1])
+        self.assertTrue(err <= model.error_[0])
         self.assertTrue(model.n_iter_ <= max_iter)
 
 
