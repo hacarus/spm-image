@@ -14,13 +14,17 @@ def sparse_encode_with_mask(X, dictionary, mask, **kwargs):
         X : array-like, shape (n_samples, n_features)
             Training vector, where n_samples in the number of samples
             and n_features is the number of features.
+
         dictionary : array of shape (n_components, n_features),
             The dictionary factor
+
         mask : array-like, shape (n_samples, n_features),
             value at (i,j) in mask is not 1 indicates value at (i,j) in X is missing
+
         verbose : bool
             Degree of output the procedure will print.
-        **kwargs : 
+
+        **kwargs :
             algorithm : {'lasso_lars', 'lasso_cd', 'lars', 'omp', 'threshold'}
                 lars: uses the least angle regression method (linear_model.lars_path)
                 lasso_lars: uses Lars to compute the Lasso solution
