@@ -1,11 +1,11 @@
 from logging import getLogger
 
 import numpy as np
-
 from sklearn.base import BaseEstimator
 from sklearn.decomposition.dict_learning import SparseCodingMixin, sparse_encode
 from sklearn.utils import check_array
 from sklearn.utils.validation import check_is_fitted
+
 from .dict_learning import sparse_encode_with_mask
 
 logger = getLogger(__name__)
@@ -69,7 +69,7 @@ def _ksvd(Y: np.ndarray, n_components: int, n_nonzero_coefs: int, max_iter: int,
         else:
             W = sparse_encode_with_mask(Y, H, mask, algorithm='omp', n_nonzero_coefs=n_nonzero_coefs, n_jobs=n_jobs)
             Y[mask == 0] = W.dot(H)[mask == 0]
-            
+
         for j in range(n_components):
             x = W[:, j] != 0
             if np.sum(x) == 0:
