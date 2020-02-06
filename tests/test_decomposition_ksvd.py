@@ -3,6 +3,7 @@ import unittest
 from spmimage.decomposition import KSVD
 
 import numpy as np
+import numpy.testing as npt
 
 from tests.utils import generate_dictionary_and_samples
 
@@ -72,6 +73,22 @@ class TestKSVD(unittest.TestCase):
             # print(model.error_)
             self.assertTrue(model.error_[-1] <= prev_error)
             prev_error = model.error_[-1]
+
+    def test_ksvd_dict_init(self):
+        D = np.random.rand(10, 100)
+        model = KSVD(n_components=10, transform_n_nonzero_coefs=5, max_iter=1, method='normal', dict_init=D)
+        npt.assert_array_equal(model.components_, D)
+
+        # shape of X is invalid against initial dictionary
+        X = np.random.rand(20, 200)
+        with self.assertRaises(ValueError):
+            model.fit(X)
+
+        # n_components is invalid against initial dictionary
+        X = np.random.rand(20, 100)
+        model = KSVD(n_components=20, transform_n_nonzero_coefs=5, max_iter=1, method='normal', dict_init=D)
+        with self.assertRaises(ValueError):
+            model.fit(X)
 
     def test_approximate_ksvd(self):
         n_nonzero_coefs = 5
