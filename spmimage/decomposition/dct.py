@@ -1,8 +1,10 @@
 import itertools
+from typing import Tuple
+
 import numpy as np
 
 
-def zig_zag_index(k: int, n: int):
+def zig_zag_index(k: int, n: int) -> Tuple[int, int]:
     """
     get k-th index i and j on (n, n)-matrix according to zig-zag scan.
 
@@ -33,7 +35,8 @@ def zig_zag_index(k: int, n: int):
     j = k - i * (i + 1) // 2
     return (j, i - j) if i & 1 else (i - j, j)
 
-def generate_dct_atom(u, v, n):
+
+def generate_dct_atom(u, v, n) -> np.ndarray:
     """
     generate an (u, v)-th atom of DCT dictionary with size n by n.
 
