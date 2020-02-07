@@ -6,6 +6,7 @@ import numpy.testing as npt
 from spmimage.decomposition import generate_dct_dictionary
 from spmimage.decomposition.dct import zig_zag_index
 
+
 class TestDCT(unittest.TestCase):
     def setUp(self):
         np.random.seed(0)
@@ -13,10 +14,10 @@ class TestDCT(unittest.TestCase):
     def test_zig_zag_index(self):
         n = 5
         true_matrix = np.array([[0., 1., 5., 6., 14.],
-               [2., 4., 7., 13., 15.],
-               [3., 8., 12., 16., 21.],
-               [9., 11., 17., 20., 22.],
-               [10., 18., 19., 23., 24.]])
+                                [2., 4., 7., 13., 15.],
+                                [3., 8., 12., 16., 21.],
+                                [9., 11., 17., 20., 22.],
+                                [10., 18., 19., 23., 24.]])
 
         M = np.empty((n, n))
         for k in range(n * n):
@@ -30,8 +31,8 @@ class TestDCT(unittest.TestCase):
         D = generate_dct_dictionary(n_components, patch_size)
         D22 = np.array([
             [1.0, 1.0, 1.0, 1.0],
-            [0.707, -0.707,  0.707, -0.707],
-            [0.707,  0.707, -0.707, -0.707],
+            [0.707, -0.707, 0.707, -0.707],
+            [0.707, 0.707, -0.707, -0.707],
             [0.5, -0.5, -0.5, 0.5]
         ])
         npt.assert_array_almost_equal(D, D22, 3)
