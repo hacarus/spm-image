@@ -60,8 +60,7 @@ def _ksvd(Y: np.ndarray, n_components: int, n_nonzero_coefs: int, max_iter: int,
             Vector of errors at each iteration.
 
         n_iter : int
-            Number of iterations run. Returned only if `return_n_iter` is
-            set to True.
+            Number of iterations.
     """
 
     W = np.zeros((Y.shape[0], n_components))
@@ -71,7 +70,11 @@ def _ksvd(Y: np.ndarray, n_components: int, n_nonzero_coefs: int, max_iter: int,
     else:
         H = dict_init
 
-    errors = [np.linalg.norm(Y - W.dot(H), 'fro')]
+    if mask is None:
+        errors = [np.linalg.norm(Y - W.dot(H), 'fro')]
+    else:
+        errors = [np.linalg.norm(mask * (Y - W.dot(H)), 'fro')]
+
     k = -1
     for k in range(max_iter):
         if mask is None:
@@ -102,7 +105,11 @@ def _ksvd(Y: np.ndarray, n_components: int, n_nonzero_coefs: int, max_iter: int,
                 W[x, j] = U[:, 0] * s[0]
                 H[j, :] = V.T[:, 0]
 
-        errors.append(np.linalg.norm(Y - W.dot(H), 'fro'))
+        if mask is None:
+            errors.append(np.linalg.norm(Y - W.dot(H), 'fro'))
+        else:
+            errors.append(np.linalg.norm(mask * (Y - W.dot(H)), 'fro'))
+
         if np.abs(errors[-1] - errors[-2]) < tol:
             break
 
