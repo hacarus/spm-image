@@ -1,5 +1,6 @@
 import numpy as np
 
+from sklearn.utils import check_array
 from sklearn.decomposition import sparse_encode
 
 
@@ -50,3 +51,64 @@ def sparse_encode_with_mask(X, dictionary, mask, **kwargs):
                                      dictionary[:, mask[idx, :] == 1],
                                      **kwargs)
     return code
+
+
+def _shrinkage_map(X, gamma):
+    """
+    Shrinkage mapping for l2,1-norm minimization.
+    """
+    norm_X = np.linalg.norm(X, axis=0).reshape(1, -1)
+    norm_X[norm_X == 0] = gamma
+    return np.maximum(1 - gamma / norm_X, 0) * X
+
+
+def sparse_encode_with_l21_norm(X, dictionary, alpha=1.0, max_iter=1000, tau=1.0, check_input=True):
+    """
+    Finds a sparse coding that represent data with given dictionary.
+
+    X ~= code * dictionary
+
+    Parameters:
+    ------------
+        X : array-like, shape (n_samples, n_features)
+            Training matrix
+
+        dictionary : array of shape (n_components, n_features)
+            The dictionary factor
+
+        alpha : float, optional (default=1.0)
+            The penalty applied to the L2-1 norm
+
+        max_iter : int, optional (default=1000)
+            Maximum number of iterations
+
+        check_input : boolean, optional (default=True)
+            If False, the input arrays X and dictionary will not be checked.
+
+        tau : float, optional (default=1.0)
+            The penalty applied to the augmented Lagrangian function
+    Returns:
+    ---------
+        Y : array of shape (n_components, n_features)
+            The sparse codes
+    """
+    if check_input:
+        dictionary = check_array(dictionary)
+        X = check_array(X)
+
+    n_components = dictionary.shape[0]
+    inv_matrix = np.linalg.inv(dictionary @ dictionary.T + tau * np.identity(n_components))
+    XD = X @ dictionary.T
+    tau_inv = 1 / tau
+    alpha_tau = alpha * tau_inv
+
+    # initialize
+    W = XD @ inv_matrix
+    Y = W.copy()
+    U = np.zeros_like(W)
+
+    for _ in range(max_iter):
+        W = (XD + tau * Y - U) @ inv_matrix
+        Y = _shrinkage_map(W + tau_inv * U, alpha_tau)
+        U = U + tau * (W - Y)
+    return Y
