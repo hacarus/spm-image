@@ -53,7 +53,7 @@ def sparse_encode_with_mask(X, dictionary, mask, **kwargs):
     return code
 
 
-def _shrinkage_map(X, gamma):
+def _shrinkage_map_for_l21_norm(X, gamma):
     """
     Shrinkage mapping for l2,1-norm minimization.
     """
@@ -62,11 +62,22 @@ def _shrinkage_map(X, gamma):
     return np.maximum(1 - gamma / norm_X, 0) * X
 
 
-def sparse_encode_with_l21_norm(X, dictionary, alpha=1.0, max_iter=1000, tau=1.0, check_input=True):
+def sparse_encode_with_l21_norm(X, dictionary, max_iter=30, alpha=1.0, tau=1.0, check_input=True):
     """
     Finds a sparse coding that represent data with given dictionary.
 
     X ~= code * dictionary
+
+    Minimizes the following objective function:
+
+            0.5 * ||X - WD||^2_F + alpha * ||W||_2,1
+
+    To solve this problem, ADMM uses augmented Lagrangian
+
+            0.5 * ||X - WD||^2_F + alpha * ||Y||_2,1
+            + U^T (W - Y) + 0.5 * tau * ||W - Y||^2_F
+
+    where U is Lagrange multiplier and tau is tuning parameter.
 
     Parameters:
     ------------
@@ -76,17 +87,18 @@ def sparse_encode_with_l21_norm(X, dictionary, alpha=1.0, max_iter=1000, tau=1.0
         dictionary : array of shape (n_components, n_features)
             The dictionary factor
 
-        alpha : float, optional (default=1.0)
-            The penalty applied to the L2-1 norm
-
         max_iter : int, optional (default=1000)
             Maximum number of iterations
+
+        alpha : float, optional (default=1.0)
+            The penalty applied to the L2-1 norm
 
         check_input : boolean, optional (default=True)
             If False, the input arrays X and dictionary will not be checked.
 
         tau : float, optional (default=1.0)
             The penalty applied to the augmented Lagrangian function
+
     Returns:
     ---------
         Y : array of shape (n_components, n_features)
@@ -109,6 +121,6 @@ def sparse_encode_with_l21_norm(X, dictionary, alpha=1.0, max_iter=1000, tau=1.0
 
     for _ in range(max_iter):
         W = (XD + tau * Y - U) @ inv_matrix
-        Y = _shrinkage_map(W + tau_inv * U, alpha_tau)
+        Y = _shrinkage_map_for_l21_norm(W + tau_inv * U, alpha_tau)
         U = U + tau * (W - Y)
     return Y
