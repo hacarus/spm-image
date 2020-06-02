@@ -1,7 +1,7 @@
 import unittest
 
 from sklearn.decomposition import sparse_encode
-from spmimage.decomposition import sparse_encode_with_mask
+from spmimage.decomposition import sparse_encode_with_mask, sparse_encode_with_l21_norm
 
 import numpy as np
 
@@ -42,6 +42,19 @@ class TestDictLearning(unittest.TestCase):
         # check error of learning
         # print(np.linalg.norm(mask*(X-W.dot(A0)), 'fro'))
         self.assertTrue(np.linalg.norm(mask * (X - W.dot(A0)), 'fro') < 50)
+
+    def test_sparse_encode_with_l21_norm(self):
+        k0 = 5
+        n_samples = 128
+        n_features = 64
+        n_components = 32
+
+        A0, X = generate_dictionary_and_samples(n_samples, n_features, n_components, k0)
+
+        W = sparse_encode_with_l21_norm(X, A0)
+
+        # check error of learning
+        self.assertTrue(np.linalg.norm(X - W.dot(A0), 'fro') < 50)
 
 
 if __name__ == '__main__':
