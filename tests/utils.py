@@ -1,6 +1,7 @@
 from typing import Tuple
 
 import numpy as np
+from sklearn.preprocessing import normalize
 
 
 def generate_dictionary_and_samples(n_samples: int, n_features: int, n_components: int, n_nonzero_coefs: int) \
@@ -14,4 +15,5 @@ def generate_dictionary_and_samples(n_samples: int, n_features: int, n_component
         # select n_nonzero_coefs components from dictionary
         X[i, :] = np.dot(np.random.randn(n_nonzero_coefs),
                          A0[np.random.permutation(range(n_components))[:n_nonzero_coefs], :])
-    return A0, X
+    A0 = normalize(A0)
+    return A0, X # A0 is normalized
