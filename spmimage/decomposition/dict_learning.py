@@ -70,12 +70,12 @@ def sparse_encode_with_l21_norm(X, dictionary, max_iter=30, alpha=1.0, tau=1.0, 
 
     Minimizes the following objective function:
 
-            0.5 * ||X - WD||^2_F + alpha * ||W||_2,1
+            1 / (2 * n_samples) * ||X - WD||^2_F + alpha * ||W||_2,1
 
     To solve this problem, ADMM uses augmented Lagrangian
 
-            0.5 * ||X - WD||^2_F + alpha * ||Y||_2,1
-            + U^T (W - Y) + 0.5 * tau * ||W - Y||^2_F
+            1 / (2 * n_samples) * ||X - WD||^2_F + alpha * ||Y||_2,1
+            + U^T (W - Y) + tau / (2 * n_samples) * ||W - Y||^2_F
 
     where U is Lagrange multiplier and tau is tuning parameter.
 
@@ -109,8 +109,10 @@ def sparse_encode_with_l21_norm(X, dictionary, max_iter=30, alpha=1.0, tau=1.0, 
         X = check_array(X)
 
     n_components = dictionary.shape[0]
-    inv_matrix = np.linalg.inv(dictionary @ dictionary.T + tau * np.identity(n_components))
-    XD = X @ dictionary.T
+    n_samples = X.shape[0]
+    tau /= n_samples
+    inv_matrix = np.linalg.inv(dictionary @ dictionary.T / n_samples + tau * np.identity(n_components))
+    XD = X @ dictionary.T / n_samples
     tau_inv = 1 / tau
     alpha_tau = alpha * tau_inv
 
