@@ -7,8 +7,8 @@ import scipy as sp
 
 from sklearn.utils import check_array, check_X_y
 from sklearn.base import RegressorMixin
-from sklearn.linear_model.base import LinearModel
-from sklearn.linear_model.coordinate_descent import _alpha_grid
+from sklearn.linear_model._base import LinearModel
+from sklearn.linear_model._coordinate_descent import _alpha_grid
 from joblib import Parallel, delayed
 
 logger = getLogger(__name__)
