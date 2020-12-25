@@ -9,7 +9,7 @@ from sklearn.utils import check_array, check_X_y
 from sklearn.base import RegressorMixin
 from sklearn.linear_model.base import LinearModel
 from sklearn.linear_model.coordinate_descent import _alpha_grid
-from sklearn.externals.joblib import Parallel, delayed
+from joblib import Parallel, delayed
 
 logger = getLogger(__name__)
 
