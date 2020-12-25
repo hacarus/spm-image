@@ -202,6 +202,7 @@ class KSVD(BaseEstimator, _BaseSparseCoding):
     def __init__(self, n_components=None, max_iter=1000, tol=1e-8,
                  missing_value=None, transform_algorithm='omp',
                  transform_n_nonzero_coefs=None,
+                 transform_max_iter=None,
                  transform_alpha=None, n_jobs=1,
                  split_sign=False, random_state=None, method='approximate', dict_init=None):
         self.n_components = n_components
