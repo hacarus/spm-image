@@ -207,6 +207,7 @@ class KSVD(BaseEstimator, _BaseSparseCoding):
         self.n_components = n_components
         self.transform_algorithm = transform_algorithm
         self.transform_n_nonzero_coefs = transform_n_nonzero_coefs
+        self.transform_max_iter = transform_max_iter
         self.transform_alpha = transform_alpha
         self.split_sign = split_sign
         self.n_jobs = n_jobs
