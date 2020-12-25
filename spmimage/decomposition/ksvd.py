@@ -2,7 +2,7 @@ from logging import getLogger
 
 import numpy as np
 from sklearn.base import BaseEstimator
-from sklearn.decomposition.dict_learning import SparseCodingMixin, sparse_encode
+from sklearn.decomposition._dict_learning import _BaseSparseCoding, sparse_encode
 from sklearn.utils import check_array
 from sklearn.utils.validation import check_is_fitted
 
@@ -116,7 +116,7 @@ def _ksvd(Y: np.ndarray, n_components: int, n_nonzero_coefs: int, max_iter: int,
     return W, H, errors, k + 1
 
 
-class KSVD(BaseEstimator, SparseCodingMixin):
+class KSVD(BaseEstimator, _BaseSparseCoding):
     """ K-SVD
     Finds a dictionary that can be used to represent data using a sparse code.
     Solves the optimization problem:
