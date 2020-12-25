@@ -203,8 +203,10 @@ class KSVD(BaseEstimator, _BaseSparseCoding):
                  missing_value=None, transform_algorithm='omp',
                  transform_n_nonzero_coefs=None,
                  transform_max_iter=None,
+                 positive_code=False,
                  transform_alpha=None, n_jobs=1,
                  split_sign=False, random_state=None, method='approximate', dict_init=None):
+                 
         self.n_components = n_components
         self.transform_algorithm = transform_algorithm
         self.transform_n_nonzero_coefs = transform_n_nonzero_coefs
@@ -214,6 +216,7 @@ class KSVD(BaseEstimator, _BaseSparseCoding):
         self.n_jobs = n_jobs
         self.max_iter = max_iter
         self.tol = tol
+        self.positive_code = positive_code
         self.missing_value = missing_value
         self.random_state = random_state
         self.method = method
