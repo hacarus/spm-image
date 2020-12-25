@@ -204,9 +204,12 @@ class KSVD(BaseEstimator, _BaseSparseCoding):
                  transform_n_nonzero_coefs=None,
                  transform_alpha=None, n_jobs=1,
                  split_sign=False, random_state=None, method='approximate', dict_init=None):
-        self.__init__(n_components, transform_algorithm,
-                                       transform_n_nonzero_coefs,
-                                       transform_alpha, split_sign, n_jobs)
+        self.n_components = n_components
+        self.transform_algorithm = transform_algorithm
+        self.transform_n_nonzero_coefs = transform_n_nonzero_coefs
+        self.transform_alpha = transform_alpha
+        self.split_sign = split_sign
+        self.n_jobs = n_jobs
         self.max_iter = max_iter
         self.tol = tol
         self.missing_value = missing_value
