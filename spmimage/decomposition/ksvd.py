@@ -204,7 +204,7 @@ class KSVD(BaseEstimator, _BaseSparseCoding):
                  transform_n_nonzero_coefs=None,
                  transform_alpha=None, n_jobs=1,
                  split_sign=False, random_state=None, method='approximate', dict_init=None):
-        self._set_sparse_coding_params(n_components, transform_algorithm,
+        self.__init__(n_components, transform_algorithm,
                                        transform_n_nonzero_coefs,
                                        transform_alpha, split_sign, n_jobs)
         self.max_iter = max_iter
