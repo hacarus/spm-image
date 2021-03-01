@@ -27,7 +27,7 @@ def _update(X, y_k, D, coef_matrix, inv_Xy_k, inv_D, alpha, rho, max_iter, tol):
 
     w_k = X.T.dot(y_k) / n_samples
     z_k = D.dot(w_k)
-    h_k = np.zeros(w_k.shape)
+    h_k = np.zeros(z_k.shape)
 
     cost = _cost_function(X, y_k, w_k, z_k, alpha)
     threshold = alpha / rho
@@ -212,7 +212,8 @@ class FusedLassoADMM(GeneralizedLasso):
         return self.merge_matrix(n_features, fused)
 
     def merge_matrix(self, n_features: int, trend_matrix: np.ndarray) -> np.ndarray:
-        generated = self.sparse_coef * np.eye(n_features) + self.trend_coef * trend_matrix
+        generated = np.vstack([self.sparse_coef * np.identity(n_features),
+                               self.trend_coef * trend_matrix])
         return generated
 
 
