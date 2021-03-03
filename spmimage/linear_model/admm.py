@@ -28,7 +28,7 @@ def _update(X, y_k, D, coef_matrix, inv_Xy_k, inv_D, alpha, rho, max_iter,
 
     w_k = X.T.dot(y_k) / n_samples
     z_k = D.dot(w_k)
-    h_k = np.zeros(z_k.shape)
+    h_k = np.zeros_like(z_k)
 
     cost = _cost_function(X, y_k, w_k, z_k, alpha)
     threshold = alpha / rho
@@ -146,8 +146,9 @@ class GeneralizedLasso(LinearModel, RegressorMixin):
     def fit(self, X, y, check_input=False):
         if self.alpha == 0:
             logger.warning("""
-With alpha=0, this algorithm does not converge well. You are advised to use the LinearRegression estimator
-""")
+                With alpha=0, this algorithm does not converge well. 
+                You are advised to use the LinearRegression estimator
+                """)
 
         if check_input:
             X, y = check_X_y(X, y, accept_sparse='csc',
@@ -157,10 +158,13 @@ With alpha=0, this algorithm does not converge well. You are advised to use the 
             y = check_array(y, order='F', copy=False, dtype=X.dtype.type,
                             ensure_2d=False)
 
-        X, y, X_offset, y_offset, X_scale = self._preprocess_data(X, y,
-                                                                  fit_intercept=self.fit_intercept,
-                                                                  normalize=self.normalize,
-                                                                  copy=self.copy_X and not check_input)
+        (X, y,
+         X_offset,
+         y_offset,
+         X_scale) = self._preprocess_data(X, y,
+                                          fit_intercept=self.fit_intercept,
+                                          normalize=self.normalize,
+                                          copy=self.copy_X and not check_input)
 
         if y.ndim == 1:
             y = y[:, np.newaxis]
@@ -214,8 +218,8 @@ class FusedLassoADMM(GeneralizedLasso):
         self.trend_coef = trend_coef
 
     def generate_transform_matrix(self, n_features: int) -> np.ndarray:
-        fused = np.eye(n_features) - np.eye(n_features, k=-1)
-        fused[0, 0] = 0
+        fused = np.eye(n_features - 1, n_features, k=1) \
+                - np.eye(n_features - 1, n_features)
         return self.merge_matrix(n_features, fused)
 
     def merge_matrix(self, n_features: int,
@@ -233,10 +237,9 @@ class FusedLassoADMM(GeneralizedLasso):
 class TrendFilteringADMM(FusedLassoADMM):
 
     def generate_transform_matrix(self, n_features: int) -> np.ndarray:
-        trend = 2 * np.eye(n_features) - np.eye(n_features, k=-1) - np.eye(
-            n_features, k=1)
-        trend[0, 0] = 1
-        trend[-1:, -1] = 1
+        trend = - np.eye(n_features - 2, n_features) \
+                + 2 * np.eye(n_features - 2, n_features, k=1) \
+                - np.eye(n_features - 2, n_features, k=2)
         return self.merge_matrix(n_features, trend)
 
 
@@ -244,18 +247,10 @@ class QuadraticTrendFilteringADMM(TrendFilteringADMM):
 
     def generate_transform_matrix(self, n_features: int) -> np.ndarray:
         if n_features < 3:
-            trend = np.zeros((n_features, n_features))
+            trend = np.zeros((0, n_features))
         else:
-            trend = - np.eye(n_features, k=1) \
-                    + 3 * np.eye(n_features) \
-                    - 3 * np.eye(n_features, k=-1) \
-                    + np.eye(n_features, k=-2)
-            trend[0, 0] = 1
-            trend[0, 1] = -1
-            trend[1, 0] = -1
-            trend[1, 1] = 2
-            trend[1, 2] = -1
-            trend[-1, -1] = 1
-            trend[-1, -2] = -1
-            trend[-1, -3] = 0
+            trend = np.eye(n_features - 3, n_features) \
+                    - 3 * np.eye(n_features - 3, n_features, k=1) \
+                    + 3 * np.eye(n_features - 3, n_features, k=2) \
+                    - np.eye(n_features - 3, n_features, k=3)
         return self.merge_matrix(n_features, trend)

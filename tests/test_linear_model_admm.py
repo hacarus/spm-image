@@ -256,11 +256,9 @@ class TestTrendFilteringADMM(unittest.TestCase):
         self.X = np.random.normal(0.0, 1.0, (8, 5))
 
     def test_generate_transform_matrix(self):
-        D = np.array([[1, -1, 0, 0, 0],
-                      [-1, 2, -1, 0, 0],
+        D = np.array([[-1, 2, -1, 0, 0],
                       [0, -1, 2, -1, 0],
-                      [0, 0, -1, 2, -1],
-                      [0, 0, 0, -1, 1]])
+                      [0, 0, -1, 2, -1]])
         clf = TrendFilteringADMM(sparse_coef=1, trend_coef=0)
         assert_array_almost_equal(np.eye(5), clf.generate_transform_matrix(5))
 
@@ -281,8 +279,8 @@ class TestTrendFilteringADMM(unittest.TestCase):
 
         # default
         clf = TrendFilteringADMM(alpha=0.01).fit(self.X, y)
-        assert_array_almost_equal(clf.coef_, [0.014, 9.984, 19.951,
-                                              9.986, 0.02], decimal=3)
+        assert_array_almost_equal(clf.coef_, [0.015, 10.017, 19.932,
+                                              9.989, 0.033], decimal=3)
 
         # all coefs will be zero
         clf = TrendFilteringADMM(alpha=1e5).fit(self.X, y)
@@ -295,11 +293,8 @@ class TestQuadraticTrendFilteringADMM(unittest.TestCase):
         self.X = np.random.normal(0.0, 1.0, (8, 5))
 
     def test_generate_transform_matrix(self):
-        D = np.array([[1., -1., 0., 0., 0.],
-                      [-1., 2., -1., 0., 0.],
-                      [1., -3., 3., -1., 0.],
-                      [0., 1., -3., 3., -1.],
-                      [0., 0., 0., -1., 1.]])
+        D = np.array([[1., -3., 3., -1., 0.],
+                      [0., 1., -3., 3., -1.]])
 
         clf = QuadraticTrendFilteringADMM(sparse_coef=1, trend_coef=0)
         assert_array_almost_equal(np.eye(5), clf.generate_transform_matrix(5))
@@ -312,15 +307,9 @@ class TestQuadraticTrendFilteringADMM(unittest.TestCase):
                                   clf.generate_transform_matrix(5))
 
         # boundary check
-        assert_array_almost_equal(np.vstack([np.eye(1), np.zeros((1, 1))]),
-                                  clf.generate_transform_matrix(1))
-        assert_array_almost_equal(np.vstack([np.eye(2), np.zeros((2, 2))]),
-                                  clf.generate_transform_matrix(2))
-        D = np.array([[1., -1., 0.],
-                      [-1., 2., -1.],
-                      [0, -1., 1.]])
-        assert_array_almost_equal(np.vstack([np.eye(3), D]),
-                                  clf.generate_transform_matrix(3))
+        assert_array_almost_equal(np.eye(1), clf.generate_transform_matrix(1))
+        assert_array_almost_equal(np.eye(2), clf.generate_transform_matrix(2))
+        assert_array_almost_equal(np.eye(3), clf.generate_transform_matrix(3))
 
     def test_trend_filtering(self):
         beta = np.array([0., 1., 2., 1., 0.])
