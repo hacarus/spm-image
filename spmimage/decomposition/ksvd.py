@@ -2,7 +2,7 @@ from logging import getLogger
 
 import numpy as np
 from sklearn.base import BaseEstimator
-from sklearn.decomposition.dict_learning import SparseCodingMixin, sparse_encode
+from sklearn.decomposition._dict_learning import _BaseSparseCoding, sparse_encode
 from sklearn.utils import check_array
 from sklearn.utils.validation import check_is_fitted
 
@@ -116,7 +116,7 @@ def _ksvd(Y: np.ndarray, n_components: int, n_nonzero_coefs: int, max_iter: int,
     return W, H, errors, k + 1
 
 
-class KSVD(BaseEstimator, SparseCodingMixin):
+class KSVD(BaseEstimator, _BaseSparseCoding):
     """ K-SVD
     Finds a dictionary that can be used to represent data using a sparse code.
     Solves the optimization problem:
@@ -202,13 +202,21 @@ class KSVD(BaseEstimator, SparseCodingMixin):
     def __init__(self, n_components=None, max_iter=1000, tol=1e-8,
                  missing_value=None, transform_algorithm='omp',
                  transform_n_nonzero_coefs=None,
+                 transform_max_iter=None,
+                 positive_code=False,
                  transform_alpha=None, n_jobs=1,
                  split_sign=False, random_state=None, method='approximate', dict_init=None):
-        self._set_sparse_coding_params(n_components, transform_algorithm,
-                                       transform_n_nonzero_coefs,
-                                       transform_alpha, split_sign, n_jobs)
+                 
+        self.n_components = n_components
+        self.transform_algorithm = transform_algorithm
+        self.transform_n_nonzero_coefs = transform_n_nonzero_coefs
+        self.transform_max_iter = transform_max_iter
+        self.transform_alpha = transform_alpha
+        self.split_sign = split_sign
+        self.n_jobs = n_jobs
         self.max_iter = max_iter
         self.tol = tol
+        self.positive_code = positive_code
         self.missing_value = missing_value
         self.random_state = random_state
         self.method = method
