@@ -21,7 +21,8 @@ def _cost_function(X, y, w, z, alpha):
     return np.linalg.norm(y - X.dot(w)) / n_samples + alpha * np.sum(np.abs(z))
 
 
-def _update(X, y_k, D, coef_matrix, inv_Xy_k, inv_D, alpha, rho, max_iter, tol):
+def _update(X, y_k, D, coef_matrix, inv_Xy_k, inv_D, alpha, rho, max_iter,
+            tol):
     # Initialize ADMM parameters
     n_samples = X.shape[0]
 
@@ -48,7 +49,8 @@ def _update(X, y_k, D, coef_matrix, inv_Xy_k, inv_D, alpha, rho, max_iter, tol):
     return w_k, t
 
 
-def admm_path(X, y, Xy=None, alphas=None, eps=1e-3, n_alphas=100, rho=1.0, max_iter=1000, tol=1e-04):
+def admm_path(X, y, Xy=None, alphas=None, eps=1e-3, n_alphas=100, rho=1.0,
+              max_iter=1000, tol=1e-04):
     _, n_features = X.shape
     multi_output = False
     n_iters = []
@@ -58,7 +60,8 @@ def admm_path(X, y, Xy=None, alphas=None, eps=1e-3, n_alphas=100, rho=1.0, max_i
         _, n_outputs = y.shape
 
     if alphas is None:
-        alphas = _alpha_grid(X, y, Xy=Xy, l1_ratio=1.0, eps=eps, n_alphas=n_alphas)
+        alphas = _alpha_grid(X, y, Xy=Xy, l1_ratio=1.0, eps=eps,
+                             n_alphas=n_alphas)
     else:
         alphas = np.sort(alphas)[::-1]
         n_alphas = len(alphas)
@@ -111,10 +114,12 @@ def _admm(
     # Update ADMM parameters by columns
     n_iter_ = np.empty((n_targets,), dtype=int)
     if n_targets == 1:
-        w_t, n_iter_[0] = _update(X, y, D, coef_matrix, inv_Xy, inv_D, alpha, rho, max_iter, tol)
+        w_t, n_iter_[0] = _update(X, y, D, coef_matrix, inv_Xy, inv_D, alpha,
+                                  rho, max_iter, tol)
     else:
         results = Parallel(n_jobs=-1, backend='threading')(
-            delayed(_update)(X, y[:, k], D, coef_matrix, inv_Xy[:, k], inv_D, alpha, rho, max_iter, tol)
+            delayed(_update)(X, y[:, k], D, coef_matrix, inv_Xy[:, k], inv_D,
+                             alpha, rho, max_iter, tol)
             for k in range(n_targets)
         )
         for k in range(n_targets):
@@ -152,7 +157,8 @@ With alpha=0, this algorithm does not converge well. You are advised to use the 
             y = check_array(y, order='F', copy=False, dtype=X.dtype.type,
                             ensure_2d=False)
 
-        X, y, X_offset, y_offset, X_scale = self._preprocess_data(X, y, fit_intercept=self.fit_intercept,
+        X, y, X_offset, y_offset, X_scale = self._preprocess_data(X, y,
+                                                                  fit_intercept=self.fit_intercept,
                                                                   normalize=self.normalize,
                                                                   copy=self.copy_X and not check_input)
 
@@ -194,12 +200,13 @@ class LassoADMM(GeneralizedLasso):
 class FusedLassoADMM(GeneralizedLasso):
     """Fused Lasso minimises the following objective function.
 
-1/(2 * n_samples) * ||y - Xw||^2_2 + \lambda_1 \sum_{j=1}^p |w_j| + \lambda_2 \sum_{j=2}^p |w_j - w_{j-1}|
+    1/(2 * n_samples) * ||y - Xw||^2_2 + \lambda_1 \sum_{j=1}^p |w_j|
+    + \lambda_2 \sum_{j=2}^p |w_j - w_{j-1}|
     """
 
-    def __init__(self, alpha=1.0, sparse_coef=1.0, trend_coef=1.0, rho=1.0, fit_intercept=True,
-                 normalize=False, copy_X=True, max_iter=1000,
-                 tol=1e-4):
+    def __init__(self, alpha=1.0, sparse_coef=1.0, trend_coef=1.0, rho=1.0,
+                 fit_intercept=True, normalize=False, copy_X=True,
+                 max_iter=1000, tol=1e-4):
         super().__init__(alpha=alpha, rho=rho, fit_intercept=fit_intercept,
                          normalize=normalize, copy_X=copy_X, max_iter=max_iter,
                          tol=tol)
@@ -211,16 +218,23 @@ class FusedLassoADMM(GeneralizedLasso):
         fused[0, 0] = 0
         return self.merge_matrix(n_features, fused)
 
-    def merge_matrix(self, n_features: int, trend_matrix: np.ndarray) -> np.ndarray:
-        generated = np.vstack([self.sparse_coef * np.identity(n_features),
-                               self.trend_coef * trend_matrix])
-        return generated
+    def merge_matrix(self, n_features: int,
+                     trend_matrix: np.ndarray) -> np.ndarray:
+        if self.sparse_coef == 0:
+            return self.trend_coef * trend_matrix
+        elif self.trend_coef == 0:
+            return self.sparse_coef * np.identity(n_features)
+        else:
+            generated = np.vstack([self.sparse_coef * np.identity(n_features),
+                                   self.trend_coef * trend_matrix])
+            return generated
 
 
 class TrendFilteringADMM(FusedLassoADMM):
 
     def generate_transform_matrix(self, n_features: int) -> np.ndarray:
-        trend = 2 * np.eye(n_features) - np.eye(n_features, k=-1) - np.eye(n_features, k=1)
+        trend = 2 * np.eye(n_features) - np.eye(n_features, k=-1) - np.eye(
+            n_features, k=1)
         trend[0, 0] = 1
         trend[-1:, -1] = 1
         return self.merge_matrix(n_features, trend)
