@@ -221,6 +221,7 @@ class KSVD(BaseEstimator, _BaseSparseCoding):
         self.random_state = random_state
         self.method = method
         self.dict_init = dict_init
+        self.components_ = None
 
     def fit(self, X, y=None):
         """Fit the model from data in X.
