@@ -16,7 +16,7 @@ jobs:
           - {os: macos-latest, pip: ~/Library/Caches/pip}
           - {os: windows-latest, pip: ~\AppData\Local\pip\Cache}
         python: [ '3.8', '3.9' ]
-  name: ${{ matrix.config.os }} Python ${{ matrix.python }} 
+    name: ${{ matrix.config.os }} Python ${{ matrix.python }} 
   steps:
     - uses: actions/checkout@v2
     - name: Setup python
