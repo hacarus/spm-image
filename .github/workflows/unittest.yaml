@@ -14,6 +14,7 @@ jobs:
         config: 
           - {os: ubuntu-latest, pip: ~/.cache/pip}
           - {os: macos-latest, pip: ~/Library/Caches/pip}
+          - {os: windows-latest, pip: ~\AppData\Local\pip\Cache}
         python: [ '3.8', '3.9' ]
     name: "${{ matrix.config.os }} Python ${{ matrix.python }}" 
     steps:
