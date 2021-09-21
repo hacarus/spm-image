@@ -24,6 +24,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           architecture: x64
       - name: Cache
+        uses: actions/cache@v2
         with:
           path: ${{ matrix.config.pip }}
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
