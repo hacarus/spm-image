@@ -1,4 +1,4 @@
-# spm-image : Sparse modeling and Compressive sensing in Python [![Build Status](https://travis-ci.org/hacarus/spm-image.svg?branch=development)](https://travis-ci.org/hacarus/spm-image)
+# spm-image : Sparse modeling and Compressive sensing in Python [![GitHubActions](https://github.com/atusy/minidown/workflows/unittest/badge.svg)](https://github.com/hacarus/spm-image/actions) [![Build Status](https://travis-ci.org/hacarus/spm-image.svg?branch=development)](https://travis-ci.org/hacarus/spm-image) 
 
 spm-image is a Python library for image analysis using sparse modeling and compressive sensing.
 
