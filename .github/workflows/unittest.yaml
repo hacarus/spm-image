@@ -1,8 +1,8 @@
 on:
   push:
-    branches: [main, master, gha]
+    branches: [main, master, development]
   pull_request:
-    branches: [main, master]
+    branches: [main, master, development]
 
 name: Test
 
