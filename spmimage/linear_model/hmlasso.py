@@ -4,9 +4,9 @@ import numpy as np
 from sklearn.utils import check_array, check_X_y
 from sklearn.utils.validation import FLOAT_DTYPES
 from sklearn.base import RegressorMixin
-from sklearn.linear_model.base import LinearModel
+from sklearn.linear_model._base import LinearModel
 from sklearn.preprocessing import StandardScaler
-from sklearn.externals.joblib import Parallel, delayed
+from joblib import Parallel, delayed
 
 logger = getLogger(__name__)
 
