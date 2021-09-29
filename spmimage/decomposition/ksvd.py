@@ -220,7 +220,8 @@ class KSVD(BaseEstimator, _BaseSparseCoding):
         self.missing_value = missing_value
         self.random_state = random_state
         self.method = method
-        self.components_ = dict_init
+        self.dict_init = dict_init
+        self.components_ = None
 
     def fit(self, X, y=None):
         """Fit the model from data in X.
@@ -254,16 +255,19 @@ class KSVD(BaseEstimator, _BaseSparseCoding):
         # initialize dictionary
         dict_init = None
         if self.components_ is not None:
-            if self.components_.shape[1] != n_features:
-                raise ValueError("Found input variables with inconsistent numbers of n_features")
-            elif self.components_.shape[0] != n_components:
-                raise ValueError("Found input variables with inconsistent numbers of n_components")
-            else:
-                # Warm Start
-                logger.info("KSVD fit - warm start")
-                dict_init = self.components_
+            # Warm Start
+            logger.info("KSVD fit - warm start")
+            dict_init = self.components_
+        elif self.dict_init is not None:
+            logger.info("KSVD fit - init start")
+            dict_init = self.dict_init
         else:
             logger.info("KSVD fit - cold start")
+
+        if (dict_init is not None) and (dict_init.shape[1] != n_features):
+            raise ValueError("Found input variables with inconsistent numbers of n_features")
+        elif (dict_init is not None) and (dict_init.shape[0] != n_components):
+            raise ValueError("Found input variables with inconsistent numbers of n_components")
 
         code, self.components_, self.error_, self.n_iter_ = _ksvd(
             X, n_components, self.transform_n_nonzero_coefs,

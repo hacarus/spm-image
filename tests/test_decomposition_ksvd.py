@@ -12,6 +12,11 @@ class TestKSVD(unittest.TestCase):
     def setUp(self):
         np.random.seed(0)
 
+    def test_ksvd_attributes(self):
+        D = np.random.rand(10, 100)
+        model = KSVD(n_components=10, transform_n_nonzero_coefs=5, max_iter=1, method='normal', dict_init=D)
+        self.assertIsInstance(model.get_params(), dict)
+
     def test_ksvd_normal_input(self):
         n_nonzero_coefs = 4
         n_samples = 512
@@ -77,7 +82,7 @@ class TestKSVD(unittest.TestCase):
     def test_ksvd_dict_init(self):
         D = np.random.rand(10, 100)
         model = KSVD(n_components=10, transform_n_nonzero_coefs=5, max_iter=1, method='normal', dict_init=D)
-        npt.assert_array_equal(model.components_, D)
+        npt.assert_array_equal(model.dict_init, D)
 
         # shape of X is invalid against initial dictionary
         X = np.random.rand(20, 200)
