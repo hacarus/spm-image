@@ -95,25 +95,6 @@ class TestLassoADMM(unittest.TestCase):
         assert_array_almost_equal(clf.coef_, [0.249], decimal=3)
         assert_array_almost_equal(pred, [0.498, 0.746, 0.995], decimal=3)
 
-        # tests for max_iter parameter(default = 1000)
-        clf = LassoADMM(alpha=0.5, rho=0.3, max_iter=100)
-        clf.fit(X, Y)
-        pred = clf.predict(T)
-        assert_array_almost_equal(clf.coef_, [0.249], decimal=3)
-        assert_array_almost_equal(pred, [0.498, 0.746, 0.995], decimal=3)
-
-        clf = LassoADMM(alpha=0.5, rho=0.3, max_iter=500)
-        clf.fit(X, Y)
-        pred = clf.predict(T)
-        assert_array_almost_equal(clf.coef_, [0.249], decimal=3)
-        assert_array_almost_equal(pred, [0.498, 0.746, 0.995], decimal=3)
-
-        clf = LassoADMM(alpha=0.5, rho=0.3, max_iter=1000)
-        clf.fit(X, Y)
-        pred = clf.predict(T)
-        assert_array_almost_equal(clf.coef_, [0.249], decimal=3)
-        assert_array_almost_equal(pred, [0.498, 0.746, 0.995], decimal=3)
-
         clf = LassoADMM(alpha=0.5, rho=0.5)
         clf.fit(X, Y)
         pred = clf.predict(T)

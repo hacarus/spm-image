@@ -2,6 +2,7 @@
 
 ## v0.0.11
 
+* Implement notebook unittest ([#115](https://github.com/hacarus/spm-image/issues/115))
 * Prepare change log ([#104](https://github.com/hacarus/spm-image/issues/104))
 * Implement HMLasso ([#73](https://github.com/hacarus/spm-image/issues/73))
 * Fix ksvd inpainting example ([#76](https://github.com/hacarus/spm-image/issues/76))

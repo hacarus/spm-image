@@ -5,7 +5,7 @@ from spmimage.linear_model import HMLasso
 from numpy.testing import assert_array_almost_equal
 
 
-def build_dataset(n_samples=50, n_features=200, n_informative_features=10,
+def build_dataset(n_samples=50, n_features=100, n_informative_features=10,
                   n_targets=1):
     """
     build an ill-posed linear regression problem with many noisy features and
@@ -83,31 +83,6 @@ class TestHMLasso(unittest.TestCase):
         pred = clf.predict(T)
         assert_array_almost_equal(clf.coef_, [1], decimal=3)
         assert_array_almost_equal(pred, [2, 3, 4], decimal=3)
-
-        clf = HMLasso(alpha=0.5, mu_coef=0.3, max_iter_coef=50, tol_coef=1e-8)
-        clf.fit(X, Y)
-        pred = clf.predict(T)
-        assert_array_almost_equal(clf.coef_, [0.25], decimal=3)
-        assert_array_almost_equal(pred, [0.5, 0.75, 1.0], decimal=3)
-
-        # tests for max_iter parameter(default = 1000)
-        clf = HMLasso(alpha=0.5, mu_coef=0.3, max_iter_coef=100, tol_coef=1e-8)
-        clf.fit(X, Y)
-        pred = clf.predict(T)
-        assert_array_almost_equal(clf.coef_, [0.25], decimal=3)
-        assert_array_almost_equal(pred, [0.5, 0.75, 1.0], decimal=3)
-
-        clf = HMLasso(alpha=0.5, mu_coef=0.3, max_iter_coef=500, tol_coef=1e-8)
-        clf.fit(X, Y)
-        pred = clf.predict(T)
-        assert_array_almost_equal(clf.coef_, [0.25], decimal=3)
-        assert_array_almost_equal(pred, [0.5, 0.75, 1.0], decimal=3)
-
-        clf = HMLasso(alpha=0.5, mu_coef=0.3, max_iter_coef=1000, tol_coef=1e-8)
-        clf.fit(X, Y)
-        pred = clf.predict(T)
-        assert_array_almost_equal(clf.coef_, [0.249], decimal=3)
-        assert_array_almost_equal(pred, [0.5, 0.75, 1.0], decimal=3)
 
         clf = HMLasso(alpha=0.5, mu_coef=0.5, tol_coef=1e-8)
         clf.fit(X, Y)
