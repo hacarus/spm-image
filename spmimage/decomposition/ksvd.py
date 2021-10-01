@@ -1,11 +1,11 @@
 from logging import getLogger
 
 import numpy as np
-
 from sklearn.base import BaseEstimator
-from sklearn.decomposition.dict_learning import SparseCodingMixin, sparse_encode
+from sklearn.decomposition._dict_learning import _BaseSparseCoding, sparse_encode
 from sklearn.utils import check_array
 from sklearn.utils.validation import check_is_fitted
+
 from .dict_learning import sparse_encode_with_mask
 
 logger = getLogger(__name__)
@@ -27,31 +27,40 @@ def _ksvd(Y: np.ndarray, n_components: int, n_nonzero_coefs: int, max_iter: int,
         Y : array-like, shape (n_samples, n_features)
             Training vector, where n_samples in the number of samples
             and n_features is the number of features.
+
         n_components : int,
             number of dictionary elements to extract
+
         n_nonzero_coefs : int,
             number of non-zero elements of sparse coding
+
         max_iter : int,
             maximum number of iterations to perform
+
         tol : float,
             tolerance for numerical error
+
         dict_init : array of shape (n_components, n_features),
             initial values for the dictionary, for warm restart
+
         mask : array-like, shape (n_samples, n_features),
             value at (i,j) in mask is not 1 indicates value at (i,j) in Y is missing
+
         n_jobs : int, optional
             Number of parallel jobs to run.
     Returns:
     ---------
         code : array of shape (n_samples, n_components)
             The sparse code factor in the matrix factorization.
+
         dictionary : array of shape (n_components, n_features),
             The dictionary factor in the matrix factorization.
+
         errors : array
             Vector of errors at each iteration.
+
         n_iter : int
-            Number of iterations run. Returned only if `return_n_iter` is
-            set to True.
+            Number of iterations.
     """
 
     W = np.zeros((Y.shape[0], n_components))
@@ -61,13 +70,18 @@ def _ksvd(Y: np.ndarray, n_components: int, n_nonzero_coefs: int, max_iter: int,
     else:
         H = dict_init
 
-    errors = [np.linalg.norm(Y - W.dot(H), 'fro')]
+    if mask is None:
+        errors = [np.linalg.norm(Y - W.dot(H), 'fro')]
+    else:
+        errors = [np.linalg.norm(mask * (Y - W.dot(H)), 'fro')]
+
     k = -1
     for k in range(max_iter):
         if mask is None:
             W = sparse_encode(Y, H, algorithm='omp', n_nonzero_coefs=n_nonzero_coefs, n_jobs=n_jobs)
         else:
             W = sparse_encode_with_mask(Y, H, mask, algorithm='omp', n_nonzero_coefs=n_nonzero_coefs, n_jobs=n_jobs)
+            Y[mask == 0] = W.dot(H)[mask == 0]
 
         for j in range(n_components):
             x = W[:, j] != 0
@@ -91,14 +105,18 @@ def _ksvd(Y: np.ndarray, n_components: int, n_nonzero_coefs: int, max_iter: int,
                 W[x, j] = U[:, 0] * s[0]
                 H[j, :] = V.T[:, 0]
 
-        errors.append(np.linalg.norm(Y - W.dot(H), 'fro'))
+        if mask is None:
+            errors.append(np.linalg.norm(Y - W.dot(H), 'fro'))
+        else:
+            errors.append(np.linalg.norm(mask * (Y - W.dot(H)), 'fro'))
+
         if np.abs(errors[-1] - errors[-2]) < tol:
             break
 
     return W, H, errors, k + 1
 
 
-class KSVD(BaseEstimator, SparseCodingMixin):
+class KSVD(BaseEstimator, _BaseSparseCoding):
     """ K-SVD
     Finds a dictionary that can be used to represent data using a sparse code.
     Solves the optimization problem:
@@ -109,12 +127,16 @@ class KSVD(BaseEstimator, SparseCodingMixin):
     ----------
         n_components : int,
             number of dictionary elements to extract
+
         max_iter : int,
             maximum number of iterations to perform
+
         tol : float,
             tolerance for numerical error
+
         missing_value : float,
             missing value in the data
+
         transform_algorithm : {'lasso_lars', 'lasso_cd', 'lars', 'omp', 'threshold'}
             Algorithm used to transform the data
             lars: uses the least angle regression method (linear_model.lars_path)
@@ -127,10 +149,12 @@ class KSVD(BaseEstimator, SparseCodingMixin):
             the projection ``dictionary * X'``
             .. versionadded:: 0.17
                *lasso_cd* coordinate descent method to improve speed.
+
         transform_n_nonzero_coefs : int, ``0.1 * n_features`` by default
             Number of nonzero coefficients to target in each column of the
             solution. This is only used by `algorithm='lars'` and `algorithm='omp'`
             and is overridden by `alpha` in the `omp` case.
+
         transform_alpha : float, 1. by default
             If `algorithm='lasso_lars'` or `algorithm='lasso_cd'`, `alpha` is the
             penalty applied to the L1 norm.
@@ -139,27 +163,34 @@ class KSVD(BaseEstimator, SparseCodingMixin):
             If `algorithm='omp'`, `alpha` is the tolerance parameter: the value of
             the reconstruction error targeted. In this case, it overrides
             `n_nonzero_coefs`.
+
         n_jobs : int,
             number of parallel jobs to run
+
         split_sign : bool, False by default
             Whether to split the sparse feature vector into the concatenation of
             its negative part and its positive part. This can improve the
             performance of downstream classifiers.
+
         random_state : int, RandomState instance or None, optional (default=None)
             If int, random_state is the seed used by the random number generator;
             If RandomState instance, random_state is the random number generator;
             If None, the random number generator is the RandomState instance used
             by `np.random`.
+
         method : {'approximate': Approximate KSVD, 'normal': normal KSVD}, 'approximate' by default
 
     Attributes
     ----------
         components_ : array, [n_components, n_features]
             dictionary atoms extracted from the data
+
         error_ : array
             vector of errors at each iteration
+
         n_iter_ : int
             Number of iterations run.
+
     **References:**
         Elad, Michael, and Michal Aharon.
         "Image denoising via sparse and redundant representations over learned dictionaries."
@@ -171,16 +202,25 @@ class KSVD(BaseEstimator, SparseCodingMixin):
     def __init__(self, n_components=None, max_iter=1000, tol=1e-8,
                  missing_value=None, transform_algorithm='omp',
                  transform_n_nonzero_coefs=None,
+                 transform_max_iter=None,
+                 positive_code=False,
                  transform_alpha=None, n_jobs=1,
-                 split_sign=False, random_state=None, method='approximate'):
-        self._set_sparse_coding_params(n_components, transform_algorithm,
-                                       transform_n_nonzero_coefs,
-                                       transform_alpha, split_sign, n_jobs)
+                 split_sign=False, random_state=None, method='approximate', dict_init=None):
+                 
+        self.n_components = n_components
+        self.transform_algorithm = transform_algorithm
+        self.transform_n_nonzero_coefs = transform_n_nonzero_coefs
+        self.transform_max_iter = transform_max_iter
+        self.transform_alpha = transform_alpha
+        self.split_sign = split_sign
+        self.n_jobs = n_jobs
         self.max_iter = max_iter
         self.tol = tol
+        self.positive_code = positive_code
         self.missing_value = missing_value
         self.random_state = random_state
         self.method = method
+        self.dict_init = dict_init
         self.components_ = None
 
     def fit(self, X, y=None):
@@ -190,7 +230,9 @@ class KSVD(BaseEstimator, SparseCodingMixin):
         X : array-like, shape (n_samples, n_features)
             Training vector, where n_samples in the number of samples
             and n_features is the number of features.
+
         y : Ignored
+
         Returns
         -------
         self : object
@@ -212,9 +254,20 @@ class KSVD(BaseEstimator, SparseCodingMixin):
 
         # initialize dictionary
         dict_init = None
-        if self.components_ is not None and self.components_.shape == (n_components, n_features):
+        if self.components_ is not None:
             # Warm Start
+            logger.info("KSVD fit - warm start")
             dict_init = self.components_
+        elif self.dict_init is not None:
+            logger.info("KSVD fit - init start")
+            dict_init = self.dict_init
+        else:
+            logger.info("KSVD fit - cold start")
+
+        if (dict_init is not None) and (dict_init.shape[1] != n_features):
+            raise ValueError("Found input variables with inconsistent numbers of n_features")
+        elif (dict_init is not None) and (dict_init.shape[0] != n_components):
+            raise ValueError("Found input variables with inconsistent numbers of n_components")
 
         code, self.components_, self.error_, self.n_iter_ = _ksvd(
             X, n_components, self.transform_n_nonzero_coefs,
@@ -227,11 +280,13 @@ class KSVD(BaseEstimator, SparseCodingMixin):
         """Encode the data as a sparse combination of the dictionary atoms.
         Coding method is determined by the object parameter
         `transform_algorithm`.
+
         Parameters
         ----------
         X : array of shape (n_samples, n_features)
             Test data to be transformed, must have the same number of
             features as the data used to train the model.
+
         Returns
         -------
         code : array, shape (n_samples, n_components)

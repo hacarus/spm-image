@@ -1,3 +1,5 @@
 -r requirements.txt
 jupyter
-scikit-image
+jupyter_contrib_nbextensions
+scikit-image >= 0.18
+seaborn
